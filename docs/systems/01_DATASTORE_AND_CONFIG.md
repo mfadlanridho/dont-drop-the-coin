@@ -73,6 +73,16 @@ sequenceDiagram
 
 ---
 
+## 📱 DISCONNECT & NETWORK FAILURE BEHAVIOR
+
+| Disconnect Scenario | Server & DataStore Reaction | Player Coin Impact |
+| --- | --- | --- |
+| **Abrupt App Disconnect / Phone Battery Dies** | Roblox server fires `PlayerRemoving`. `DataStoreManager` executes `profile:EndSession()`, triggering `ProfileStore` to save banked cash and unlock the session instantly. | **Banked Cash:** Saved 100%.<br>**Unbanked Head Stack:** Lost (player dropped out of tower). |
+| **Wi-Fi / Cellular Drop** | Server detects heartbeat timeout after 10-15s, fires `PlayerRemoving`, and performs emergency `profile:EndSession()`. | **Banked Cash:** Saved 100%.<br>**Unbanked Head Stack:** Lost. |
+| **Server Crash + Phone Crash Simultaneously** | `ProfileStore` session lock remains on old server. When player rejoins a new server, `StartSessionAsync(key, {Steal = true})` detects old server crash, reclaims session lock, and loads latest saved state without data corruption. | **Banked Cash:** Saved 100% from last auto-save.<br>**Unbanked Head Stack:** Lost. |
+
+---
+
 ## 🛠️ DATASTORE MANAGER PUBLIC API
 
 | Function | Parameters | Return | Description |
