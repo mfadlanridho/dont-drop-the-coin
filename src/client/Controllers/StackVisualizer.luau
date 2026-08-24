@@ -121,18 +121,21 @@ function StackVisualizer.Init()
 			local swayState = playerSwayState[player]
 
 			local stackCount = PlayerStackCounts[player] or 0
-			local targetSwayX = math.clamp(-localVel.Z * 0.015 * (stackCount * 0.1), -0.3, 0.3)
-			local targetSwayZ = math.clamp(-localVel.X * 0.015 * (stackCount * 0.1), -0.3, 0.3)
+			local stackFactor = math.max(1, stackCount) * 0.15
+			local targetSwayX = math.clamp(-localVel.Z * 0.04 * stackFactor, -0.6, 0.6)
+			local targetSwayZ = math.clamp(-localVel.X * 0.04 * stackFactor, -0.6, 0.6)
 
-			swayState.X = swayState.X + (targetSwayX - swayState.X) * math.min(dt * 10, 1)
-			swayState.Z = swayState.Z + (targetSwayZ - swayState.Z) * math.min(dt * 10, 1)
+			swayState.X = swayState.X + (targetSwayX - swayState.X) * math.min(dt * 12, 1)
+			swayState.Z = swayState.Z + (targetSwayZ - swayState.Z) * math.min(dt * 12, 1)
 
-			-- Position visual parts locally above head
-			local baseCFrame = head.CFrame * CFrame.Angles(swayState.X * 0.05, 0, swayState.Z * 0.05)
+			-- Position visual parts locally above head with progressive bending tilt
 			for i, part in ipairs(partsList) do
+				local progressiveTiltX = swayState.X * (1 + (i * 0.08))
+				local progressiveTiltZ = swayState.Z * (1 + (i * 0.08))
 				local offsetY = 1.5 + (i * 0.35)
-				-- Cylinder orientation offset
-				part.CFrame = baseCFrame * CFrame.new(0, offsetY, 0) * CFrame.Angles(0, 0, math.rad(90))
+
+				local partCFrame = head.CFrame * CFrame.Angles(progressiveTiltX, 0, progressiveTiltZ) * CFrame.new(0, offsetY, 0) * CFrame.Angles(0, 0, math.rad(90))
+				part.CFrame = partCFrame
 			end
 		end
 	end)
