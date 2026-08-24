@@ -30,6 +30,7 @@ Config.ZONE_MULTIPLIERS = {
 
 -- Coin & Stacking Mechanics
 Config.MAX_RENDER_STACK = 30 -- Maximum physical coin models welded to head
+Config.STACK_FOLLOW_HEAD_ROTATION = false -- If true, stack tilts with head animations. If false, stays upright aligned with body.
 Config.COIN_NODE_RESPAWN_TIME = 3 -- Seconds before coin node respawns
 Config.DESPAWN_DROPPED_COIN_TIME = 10 -- Lifetime of dropped explosion coins
 

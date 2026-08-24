@@ -128,13 +128,21 @@ function StackVisualizer.Init()
 			swayState.X = swayState.X + (targetSwayX - swayState.X) * math.min(dt * 12, 1)
 			swayState.Z = swayState.Z + (targetSwayZ - swayState.Z) * math.min(dt * 12, 1)
 
-			-- Position visual parts locally above head with progressive bending tilt
+			-- Position visual parts locally above head (Head CFrame vs Upright Body Root CFrame)
+			local baseRotation
+			if Config.STACK_FOLLOW_HEAD_ROTATION then
+				baseRotation = head.CFrame
+			else
+				local _, yaw, _ = hrp.CFrame:ToOrientation()
+				baseRotation = CFrame.new(head.Position) * CFrame.Angles(0, yaw, 0)
+			end
+
 			for i, part in ipairs(partsList) do
 				local progressiveTiltX = swayState.X * (1 + (i * 0.08))
 				local progressiveTiltZ = swayState.Z * (1 + (i * 0.08))
 				local offsetY = 1.5 + (i * 0.35)
 
-				local partCFrame = head.CFrame * CFrame.Angles(progressiveTiltX, 0, progressiveTiltZ) * CFrame.new(0, offsetY, 0) * CFrame.Angles(0, 0, math.rad(90))
+				local partCFrame = baseRotation * CFrame.Angles(progressiveTiltX, 0, progressiveTiltZ) * CFrame.new(0, offsetY, 0) * CFrame.Angles(0, 0, math.rad(90))
 				part.CFrame = partCFrame
 			end
 		end
