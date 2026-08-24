@@ -12,7 +12,8 @@ function DataStoreTest.Run()
 	print("[UNIT TEST] Running DataStoreManager Unit Tests...")
 	print("==================================================")
 
-	local DataStoreManager = require(script.Parent.Parent:WaitForChild("DataStoreManager"))
+	local Services = script.Parent.Parent:WaitForChild("Services")
+	local DataStoreManager = require(Services:WaitForChild("DataStoreManager"))
 
 	-- 1. Create Mock Player Instance
 	local mockPlayer = {

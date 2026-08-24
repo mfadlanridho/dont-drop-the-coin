@@ -1,8 +1,8 @@
 --!nonstrict
 --[[
     DataStoreManager.luau
-    Handles player session data loading, profile reconciliation, auto-saving, and dupe-proof persistence using existing ProfileStore.
-    Location: src/server/DataStoreManager.luau (Syncs to ServerScriptService.Server.DataStoreManager)
+    Handles player session data loading, profile reconciliation, auto-saving, and dupe-proof persistence using ProfileStore.
+    Location: src/server/Services/DataStoreManager.luau (Syncs to ServerScriptService.Server.Services.DataStoreManager)
 --]]
 
 local Players = game:GetService("Players")
@@ -11,7 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 
-local DataManager = script.Parent:WaitForChild("DataManager")
+local DataManager = script.Parent.Parent:WaitForChild("DataManager")
 local ProfileStore = require(DataManager:WaitForChild("ProfileStore"))
 
 local PlayerProfileStore = ProfileStore.New(
