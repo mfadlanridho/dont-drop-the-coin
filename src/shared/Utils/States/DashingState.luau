@@ -1,16 +1,31 @@
 --!nonstrict
 --[[
     DashingState.luau
-    State definition for Dash Bump ability execution (0.3s duration) with Parabolic LinearVelocity constraint.
+    State definition for Dash Bump ability execution (0.3s duration) using MovementMotor class.
     Location: src/shared/Utils/States/DashingState.luau
 --]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 
 local StateMachine = require(script.Parent.Parent:WaitForChild("StateMachine"))
+
+local MovementMotor: any
+if RunService:IsClient() then
+	local ClientScripts = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client")
+	MovementMotor = require(ClientScripts:WaitForChild("MovementMotor"))
+end
+
+local motorInstance: any
+if RunService:IsClient() then
+	motorInstance = MovementMotor.new({
+		attachmentName = "DashAttachment",
+		linearVelocityName = "DashLinearVelocity",
+	})
+end
 
 local DashingState: StateMachine.StateDefinition = {
 	name = "Dashing",
@@ -30,35 +45,16 @@ local DashingState: StateMachine.StateDefinition = {
 
 		local humanoid = context.humanoid
 		local rootPart = context.rootPart
-		if humanoid and rootPart then
-			-- Lock character steering direction during forward dash lunge
-			humanoid.AutoRotate = false
+
+		if RunService:IsClient() and humanoid and rootPart and motorInstance then
+			-- Capture steering & ensure motor constraints
+			motorInstance:capture(humanoid)
+			motorInstance:ensure(rootPart)
 
 			local duration = Config.DASH_DURATION
 			local totalDistance = Config.DASH_DISTANCE
 			local avgSpeed = totalDistance / math.max(0.05, duration)
 			local forwardDirection = rootPart.CFrame.LookVector
-
-			-- Clean up any pre-existing dash constraint
-			local oldLV = rootPart:FindFirstChild("DashLinearVelocity")
-			if oldLV then oldLV:Destroy() end
-			local oldAtt = rootPart:FindFirstChild("DashAttachment")
-			if oldAtt then oldAtt:Destroy() end
-
-			-- Create Attachment & LinearVelocity physics constraint
-			local att = Instance.new("Attachment")
-			att.Name = "DashAttachment"
-			att.Parent = rootPart
-			context.dashAttachment = att
-
-			local lv = Instance.new("LinearVelocity")
-			lv.Name = "DashLinearVelocity"
-			lv.Attachment0 = att
-			lv.MaxForce = 100000
-			lv.VectorVelocity = Vector3.zero
-			lv.RelativeTo = Enum.ActuatorRelativeTo.World
-			lv.Parent = rootPart
-			context.dashLinearVelocity = lv
 
 			-- Run Parabolic Velocity Easing Curve over 0.3s (Accelerate -> Decelerate -> 0)
 			local startTime = os.clock()
@@ -70,8 +66,8 @@ local DashingState: StateMachine.StateDefinition = {
 				local speedMultiplier = 6 * t * (1 - t)
 				local currentSpeed = avgSpeed * speedMultiplier
 
-				if lv and lv.Parent then
-					lv.VectorVelocity = forwardDirection * currentSpeed
+				if motorInstance.linearVelocity then
+					motorInstance.linearVelocity.VectorVelocity = forwardDirection * currentSpeed
 				end
 			end)
 
@@ -84,10 +80,9 @@ local DashingState: StateMachine.StateDefinition = {
 
 					local track = animator:LoadAnimation(anim)
 					track.Priority = Enum.AnimationPriority.Action
-					track.Looped = false -- Explicitly disable looping for 1-shot skill animation!
+					track.Looped = false
 					track:Play(0.05, 1, 1)
 
-					-- Auto-clean track reference
 					anim:Destroy()
 				end
 			end
@@ -101,35 +96,16 @@ local DashingState: StateMachine.StateDefinition = {
 			context.dashConnection = nil
 		end
 
-		-- Clean up LinearVelocity physics constraint from rootPart directly
+		-- Clean up MovementMotor physics constraints cleanly
+		if RunService:IsClient() and motorInstance then
+			motorInstance:release(context.humanoid)
+			motorInstance:destroy()
+		end
+
+		-- Reset residual horizontal velocity momentum to prevent forward sliding
 		local rootPart = context.rootPart
 		if rootPart then
-			local dashLV = rootPart:FindFirstChild("DashLinearVelocity")
-			if dashLV then
-				dashLV:Destroy()
-			end
-			local dashAtt = rootPart:FindFirstChild("DashAttachment")
-			if dashAtt then
-				dashAtt:Destroy()
-			end
-
-			-- Reset residual horizontal velocity momentum to prevent forward sliding
 			rootPart.AssemblyLinearVelocity = Vector3.new(0, rootPart.AssemblyLinearVelocity.Y, 0)
-		end
-
-		if context.dashLinearVelocity then
-			context.dashLinearVelocity:Destroy()
-			context.dashLinearVelocity = nil
-		end
-		if context.dashAttachment then
-			context.dashAttachment:Destroy()
-			context.dashAttachment = nil
-		end
-
-		-- Restore character steering when dash completes
-		local humanoid = context.humanoid
-		if humanoid then
-			humanoid.AutoRotate = true
 		end
 	end,
 
