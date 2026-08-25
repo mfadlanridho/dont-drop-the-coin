@@ -46,10 +46,6 @@ local function handleDashBump(player: Player)
 	LastBumpTime[userId] = now
 	PlayerFSM.SetState(player, "Dashing")
 
-	-- Forward Dash Velocity Burst calculated from DASH_DISTANCE / DASH_DURATION
-	local dashSpeed = Config.DASH_DISTANCE / math.max(0.05, Config.DASH_DURATION)
-	hrp.AssemblyLinearVelocity = hrp.CFrame.LookVector * dashSpeed + Vector3.new(0, 10, 0)
-
 	-- 1. Primary 3D Spherecast Sweep along 15-stud forward dash path
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude

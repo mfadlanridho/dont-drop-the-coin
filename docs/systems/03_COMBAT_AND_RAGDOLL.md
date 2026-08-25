@@ -1,15 +1,17 @@
 # 📄 SYSTEM 03: DASH BUMP COMBAT, RAGDOLL & LOOT EXPLOSION
 
-This document specifies the OOP StateMachine architecture, AnimationControllerV2 integration, Dash Bump combat ability mechanics, 2.5-second physics ragdoll transitions, and unanchored loot explosion scattering for **Don't Drop The Coin!**.
+This document specifies the OOP StateMachine architecture, AnimationControllerV2 integration, Workspace:Spherecast 3D swept hitboxes, BallSocketConstraint physical limb ragdolls, Gizmo debug visualizers, and unanchored loot explosion scattering for **Don't Drop The Coin!**.
 
 ---
 
 ## 🎯 OBJECTIVES
 1. Enforce strict OOP state management using class-based state definitions with lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) adapted from the *Roblox AI Workspace* pattern (`StateMachine.luau`).
-2. Integrate **`AnimationControllerV2`** (`src/client/Animation/`) for client-side preloading, sequence playback, and skill animation management (`Config.DASH_ANIMATION_ID`).
-3. Program the **Dash Bump** ability (`E` key / Mobile touch button) with a 15-stud forward distance burst (`DASH_DISTANCE`), 5-second server-verified cooldown, and stack-scaled knockback impulse.
-4. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, `Motor6D` socket constraints).
-5. Program the **Loot Explosion Engine**: Detach head stack, scatter glowing unanchored physical coin parts in a 360° radial arc, and enable 10-second vacuum pickups.
+2. Maintain **persistent context tables** (`PlayerFSM.luau`) per player to guarantee state variables (`dashLinearVelocity`, `dashConnection`) are preserved across `enter()` and `exit()` hooks.
+3. Integrate **`AnimationControllerV2`** (`src/client/Animation/`) for client-side preloading, sequence playback, and skill animation management (`Config.DASH_ANIMATION_ID`).
+4. Program the **Dash Bump** ability (`E` key / Mobile touch button) using **`Workspace:Spherecast`** (4.5-stud 3D swept sphere along 15-stud forward path), smooth **parabolic velocity curve** ($6 \cdot t \cdot (1 - t)$ acceleration $\rightarrow$ deceleration), and direct `LinearVelocity` constraint destruction.
+5. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, dynamic `BallSocketConstraint` physical limb sockets, `Enum.HumanoidStateType.Physics`).
+6. Render 3D object-pooled debug gizmos (`DashBumpGizmoController.luau`) in Studio for trajectory lines, swept wire spheres, and hit labels.
+7. Program the **Loot Explosion Engine**: Detach head stack, scatter glowing unanchored physical coin parts in a 360° radial arc, and enable 10-second vacuum pickups.
 
 ---
 
@@ -24,35 +26,38 @@ stateDiagram-v2
         Walking --> DashingState: Press E / Mobile Touch Button
     }
 
-    DashingState --> Cooldown: Play Dash Anim & 15-Stud Impulse (0.3s)
+    DashingState --> Cooldown: Parabolic Velocity Curve & Spherecast Sweep (0.3s)
     Cooldown --> NormalState: 5.0 Seconds Elapsed
 
     NormalState --> SafeZoneState: Enter Ground Lobby Safe Zone
     SafeZoneState --> NormalState: Exit Ground Lobby
 
-    NormalState --> RagdollState: Struck by Bump / Hazard / AI Monster
+    NormalState --> RagdollState: Struck by Spherecast Bump / Hazard
     DashingState --> RagdollState: Struck Mid-Dash
 
     state RagdollState {
-        [*] --> DisableMotors
-        DisableMotors --> LaunchImpulse: Apply Stack-Scaled Knockback
+        [*] --> CreateBallSocketJoints
+        CreateBallSocketJoints --> LaunchImpulse: Apply Stack-Scaled Knockback
         LaunchImpulse --> ScatterLootCoins: Detach & Explode Stack (360° Arc)
         ScatterLootCoins --> Recovering: Wait 2.5 Seconds
     }
 
-    Recovering --> NormalState: Re-enable Motors & Stand Up
+    Recovering --> NormalState: Re-enable Motor6Ds & Stand Up
 ```
 
 ---
 
-## 📂 REGISTERED STATE CLASSES & ANIMATION ENGINE
+## 📂 REGISTERED STATE CLASSES, COMBAT & GIZMOS
 
-| Module File | Role / Purpose | Animation & Action Handling |
+| Module File | Role / Purpose | Technical Implementation |
 | --- | --- | --- |
 | **`StateMachine.luau`** | Core OOP State Machine class | Manages lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) |
+| **`PlayerFSM.luau`** | Persistent context & FSM manager | Reuses `PlayerContexts[player]` & manages client hook execution |
+| **`CombatServer.luau`** | Server combat & hitbox service | Uses `Workspace:Spherecast` (4.5-stud radius) & direct velocity launch |
+| **`RagdollModule.luau`** | Physics ragdoll transition module | Replaces `Motor6Ds` with physical `BallSocketConstraint` limb joints |
 | **`AnimationControllerV2.luau`** | Client animation engine | Handles track loading, preloading, and sequence crossfading |
-| **`DashingState.luau`** | Dash Bump execution state | Plays `Config.DASH_ANIMATION_ID` track on `Humanoid.Animator` |
-| **`RagdollState.luau`** | Physics ragdoll state | Disables `Motor6D` joints (2.5s) & re-enables on exit |
+| **`DashingState.luau`** | Dash Bump execution state | Parabolic velocity curve, `AutoRotate` lock, and direct LV destruction |
+| **`DashBumpGizmoController.luau`**| Client debug gizmo controller | Renders cyan trajectory lines, magenta wire spheres, and hit labels |
 
 ---
 
@@ -64,9 +69,10 @@ stateDiagram-v2
 | **`DASH_DISTANCE`** | `15.0` studs | Exact forward distance character lunges during dash |
 | **`DASH_DURATION`** | `0.3` seconds | Duration of forward dash movement |
 | **`DASH_ANIMATION_ID`**| `"rbxassetid://102382549309160"` | Roblox Asset ID for custom Dash animation track |
+| **`SPHERECAST_RADIUS`**| `4.5` studs | Radius of 3D swept sphere for collision detection |
 | **`BASE_KNOCKBACK`** | `50` impulse | Base physical force applied to victim |
 | **`STACK_KNOCKBACK_MULT`**| `2.0` per coin | Additional knockback force added per coin in victim's stack |
-| **`RAGDOLL_DURATION`** | `2.5` seconds | Duration character remains in unanchored physics ragdoll |
+| **`RAGDOLL_DURATION`** | `2.5` seconds | Duration character remains in physical flopping ragdoll |
 | **`LOOT_DESPAWN_TIME`** | `10.0` seconds | Lifetime of scattered physical coins before despawn pool recycling |
 | **`MAX_DROPPED_COINS`** | `50` max | Hard server cap on active dropped coin parts to preserve performance |
 

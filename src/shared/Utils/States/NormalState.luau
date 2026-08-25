@@ -16,6 +16,13 @@ local NormalState: StateMachine.StateDefinition = {
 
 	enter = function(context, fromState)
 		print(string.format("[NormalState] Entered Normal state for %s", context.player and context.player.Name or "Unknown"))
+
+		-- Ensure normal humanoid steering and platformstand are clean
+		local humanoid = context.humanoid
+		if humanoid then
+			humanoid.AutoRotate = true
+			humanoid.PlatformStand = false
+		end
 	end,
 
 	exit = function(context, toState)

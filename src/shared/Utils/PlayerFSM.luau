@@ -2,7 +2,7 @@
 --[[
     PlayerFSM.luau
     Manager instantiating OOP StateMachine per player with registered state definitions (Normal, Dashing, Ragdolled, SafeZone).
-    Includes network attribute replication (FSMState) to keep Server and Client states perfectly synced across the network.
+    Locomotion physics & animation hooks run strictly on the CLIENT with persistent context tables.
     Location: src/shared/Utils/PlayerFSM.luau (Syncs to ReplicatedStorage.Shared.Utils.PlayerFSM)
 --]]
 
@@ -20,7 +20,28 @@ local SafeZoneState = require(States:WaitForChild("SafeZoneState"))
 
 local ATTRIBUTE_NAME = "FSMState"
 local PlayerMachines: { [Player]: StateMachine.StateMachineInstance } = {}
+local PlayerContexts: { [Player]: StateMachine.StateContext } = {}
+
 local PlayerFSM = {}
+
+local function getOrCreateContext(player: Player): StateMachine.StateContext
+	local context = PlayerContexts[player]
+	local char = player.Character
+	if not context or context.character ~= char then
+		context = {
+			player = player,
+			character = char,
+			humanoid = char and char:FindFirstChildOfClass("Humanoid"),
+			rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
+		}
+		PlayerContexts[player] = context
+	else
+		context.character = char
+		context.humanoid = char and char:FindFirstChildOfClass("Humanoid")
+		context.rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
+	end
+	return context
+end
 
 -- Create & Register StateMachine for Player
 local function getOrCreateMachine(player: Player): StateMachine.StateMachineInstance
@@ -36,17 +57,14 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 		machine:registerState(RagdollState)
 		machine:registerState(SafeZoneState)
 
-		-- Initial State Context
-		local char = player.Character
-		local context: StateMachine.StateContext = {
-			player = player,
-			character = char,
-			humanoid = char and char:FindFirstChildOfClass("Humanoid"),
-			rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
-		}
-
 		local initialState = player:GetAttribute(ATTRIBUTE_NAME) or "Normal"
-		machine:setState(initialState, context)
+		local context = getOrCreateContext(player)
+
+		-- Execute state hooks ONLY on Client
+		if RunService:IsClient() then
+			machine:setState(initialState, context)
+		end
+
 		PlayerMachines[player] = machine
 
 		-- Server: Initialize network attribute
@@ -59,13 +77,7 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 			player:GetAttributeChangedSignal(ATTRIBUTE_NAME):Connect(function()
 				local serverState = player:GetAttribute(ATTRIBUTE_NAME)
 				if serverState and machine:getCurrentStateName() ~= serverState then
-					local updatedChar = player.Character
-					local updatedContext: StateMachine.StateContext = {
-						player = player,
-						character = updatedChar,
-						humanoid = updatedChar and updatedChar:FindFirstChildOfClass("Humanoid"),
-						rootPart = updatedChar and updatedChar:FindFirstChild("HumanoidRootPart") :: BasePart,
-					}
+					local updatedContext = getOrCreateContext(player)
 					machine:setState(serverState, updatedContext)
 				end
 			end)
@@ -87,24 +99,17 @@ end
 
 -- Set Player State with Lifecycle Validation & Network Replication
 function PlayerFSM.SetState(player: Player, newStateName: string): boolean
-	local machine = getOrCreateMachine(player)
-	local char = player.Character
-	local context: StateMachine.StateContext = {
-		player = player,
-		character = char,
-		humanoid = char and char:FindFirstChildOfClass("Humanoid"),
-		rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
-	}
-
-	local success = machine:setState(newStateName, context)
-	if success then
-		-- Replicate state change from Server to Client via Attribute
-		if RunService:IsServer() then
-			player:SetAttribute(ATTRIBUTE_NAME, newStateName)
-		end
+	-- Server: Only update replicated network attribute
+	if RunService:IsServer() then
+		player:SetAttribute(ATTRIBUTE_NAME, newStateName)
+		return true
 	end
 
-	return success
+	-- Client: Execute local state machine lifecycle hooks (enter, exit, update)
+	local machine = getOrCreateMachine(player)
+	local context = getOrCreateContext(player)
+
+	return machine:setState(newStateName, context)
 end
 
 -- Check if Player Can Cast Dash Bump
@@ -122,6 +127,7 @@ end
 -- Clean up on leave
 Players.PlayerRemoving:Connect(function(player)
 	PlayerMachines[player] = nil
+	PlayerContexts[player] = nil
 end)
 
 return PlayerFSM
