@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
     CombatServer.luau
-    Handles server-side Dash Bump cooldowns, forward raycast hitboxes, stack-scaled knockback impulse, and ragdoll explosion triggers.
+    Handles server-side Dash Bump cooldowns, Workspace:Spherecast 3D swept hitboxes, stack-scaled knockback impulse, and ragdoll explosion triggers.
     Location: src/server/Services/CombatServer.luau (Syncs to ServerScriptService.Server.Services.CombatServer)
 --]]
 
@@ -50,49 +50,78 @@ local function handleDashBump(player: Player)
 	local dashSpeed = Config.DASH_DISTANCE / math.max(0.05, Config.DASH_DURATION)
 	hrp.AssemblyLinearVelocity = hrp.CFrame.LookVector * dashSpeed + Vector3.new(0, 10, 0)
 
-	-- OverlapParams Hitbox Search in front of Attacker
+	-- 1. Primary 3D Spherecast Sweep along 15-stud forward dash path
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = { character }
+	raycastParams.IgnoreWater = true
+
+	local sphereRadius = 4.5
+	local dashDirection = hrp.CFrame.LookVector * Config.DASH_DISTANCE
+
+	local processedVictims = {}
+
+	local spherecastResult = Workspace:Spherecast(
+		hrp.Position,
+		sphereRadius,
+		dashDirection,
+		raycastParams
+	)
+
+	if spherecastResult and spherecastResult.Instance then
+		local victimChar = spherecastResult.Instance.Parent
+		if victimChar and victimChar:FindFirstChildOfClass("Humanoid") == nil and victimChar.Parent then
+			victimChar = victimChar.Parent
+		end
+
+		local victim = Players:GetPlayerFromCharacter(victimChar)
+		if victim and victim ~= player then
+			processedVictims[victim] = true
+		end
+	end
+
+	-- 2. Secondary Overlap Volume check along dash corridor to guarantee multi-victim detection
 	local overlapParams = OverlapParams.new()
 	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
 	overlapParams.FilterDescendantsInstances = { character }
 
-	local hitParts = Workspace:GetPartBoundsInBox(
-		hrp.CFrame * CFrame.new(0, 0, -4),
-		Vector3.new(6, 6, 8),
-		overlapParams
-	)
+	local corridorCenter = hrp.CFrame * CFrame.new(0, 0, -Config.DASH_DISTANCE * 0.5)
+	local corridorSize = Vector3.new(sphereRadius * 2, 7, Config.DASH_DISTANCE + 4)
+	local corridorParts = Workspace:GetPartBoundsInBox(corridorCenter, corridorSize, overlapParams)
 
-	local processedVictims = {}
-
-	for _, part in ipairs(hitParts) do
+	for _, part in ipairs(corridorParts) do
 		local victimChar = part.Parent
 		local victim = Players:GetPlayerFromCharacter(victimChar)
-
-		if victim and victim ~= player and not processedVictims[victim] then
+		if victim and victim ~= player then
 			processedVictims[victim] = true
+		end
+	end
 
-			if PlayerFSM.CanBeBumped(victim) then
-				local victimHrp = victimChar:FindFirstChild("HumanoidRootPart") :: Part
-				if victimHrp then
-					-- Calculate Stack-Scaled Knockback Force
-					local victimStack = StackServer.GetStackCount(victim)
-					local knockbackForce = Config.BUMP_BASE_IMPULSE + (victimStack * Config.BUMP_STACK_IMPULSE_MULTIPLIER)
-					local launchVector = (victimHrp.Position - hrp.Position).Unit * knockbackForce + Vector3.new(0, 30, 0)
+	-- Process all detected victims
+	for victim, _ in pairs(processedVictims) do
+		if PlayerFSM.CanBeBumped(victim) then
+			local victimChar = victim.Character
+			local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
+			if victimHrp then
+				-- Calculate Stack-Scaled Knockback Force
+				local victimStack = StackServer.GetStackCount(victim)
+				local knockbackForce = Config.BUMP_BASE_IMPULSE + (victimStack * Config.BUMP_STACK_IMPULSE_MULTIPLIER)
+				local launchVector = (victimHrp.Position - hrp.Position).Unit * knockbackForce + Vector3.new(0, 35, 0)
 
-					-- Apply Knockback Impulse
-					victimHrp:ApplyImpulse(launchVector)
+				-- Apply Direct Velocity Launch
+				victimHrp.AssemblyLinearVelocity = launchVector
 
-					-- Trigger Ragdoll State & Explode Head Stack
-					RagdollModule.TriggerRagdoll(victim, Config.RAGDOLL_DURATION)
-					LootExplosion.ScatterCoins(victim)
+				-- Trigger Physics Ragdoll State & Explode Head Stack
+				RagdollModule.TriggerRagdoll(victim, Config.RAGDOLL_DURATION)
+				LootExplosion.ScatterCoins(victim)
 
-					print(string.format("[CombatServer] %s BUMPED %s! (Launch Force: %.1f)", player.Name, victim.Name, knockbackForce))
-				end
+				print(string.format("[CombatServer] %s BUMPED %s! (Launch Force: %.1f)", player.Name, victim.Name, knockbackForce))
 			end
 		end
 	end
 
 	-- Reset FSM State after dash duration
-	task.delay(0.3, function()
+	task.delay(Config.DASH_DURATION, function()
 		if PlayerFSM.GetState(player) == "Dashing" then
 			PlayerFSM.SetState(player, "Normal")
 		end

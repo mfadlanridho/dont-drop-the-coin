@@ -35,9 +35,9 @@ Config.COIN_NODE_RESPAWN_TIME = 3 -- Seconds before coin node respawns
 Config.DESPAWN_DROPPED_COIN_TIME = 10 -- Lifetime of dropped explosion coins
 
 -- Combat & Physics
-Config.BUMP_COOLDOWN = 5 -- Cooldown in seconds for Dash Bump
+Config.BUMP_COOLDOWN = 1 -- Cooldown in seconds for Dash Bump
 Config.DASH_DISTANCE = 15 -- Exact forward dash distance in studs
-Config.DASH_DURATION = 0.3 -- Duration of forward dash in seconds
+Config.DASH_DURATION = 1 -- Duration of forward dash in seconds
 Config.DASH_ANIMATION_ID = "rbxassetid://102382549309160" -- Roblox Asset ID for Dash skill animation
 Config.BUMP_BASE_IMPULSE = 50 -- Base knockback force applied to victim
 Config.BUMP_STACK_IMPULSE_MULTIPLIER = 2 -- Extra knockback force per stack height
