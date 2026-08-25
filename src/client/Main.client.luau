@@ -9,9 +9,11 @@ local Controllers = script.Parent:WaitForChild("Controllers")
 local StackVisualizer = require(Controllers:WaitForChild("StackVisualizer"))
 local InputController = require(Controllers:WaitForChild("InputController"))
 local DashBumpGizmoController = require(Controllers:WaitForChild("DashBumpGizmoController"))
+local RagdollClientController = require(Controllers:WaitForChild("RagdollClientController"))
 
 StackVisualizer.Init()
 InputController.Init()
 DashBumpGizmoController.Init()
+RagdollClientController.Init()
 
 print("[ClientMain] All client controllers initialized successfully!")

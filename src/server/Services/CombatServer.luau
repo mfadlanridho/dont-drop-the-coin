@@ -22,6 +22,41 @@ local LootExplosion = require(Services:WaitForChild("LootExplosion"))
 local LastBumpTime: { [number]: number } = {}
 local CombatServer = {}
 
+-- Execute Full Combat Bump API on a Victim
+function CombatServer.BumpVictim(attackerPlayer: Player?, victim: Player)
+	if not PlayerFSM.CanBeBumped(victim) then return end
+	local victimChar = victim.Character
+	local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
+	if not victimHrp then return end
+
+	local attackerChar = attackerPlayer and attackerPlayer.Character
+	local attackerHrp = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart") :: Part
+	local launchDir = if attackerHrp then (victimHrp.Position - attackerHrp.Position).Unit else -victimHrp.CFrame.LookVector
+
+	-- Calculate Stack-Scaled Knockback Force
+	local victimStack = StackServer.GetStackCount(victim)
+	local knockbackForce = Config.BUMP_BASE_IMPULSE + (victimStack * Config.BUMP_STACK_IMPULSE_MULTIPLIER)
+	local launchVector = launchDir * knockbackForce + Vector3.new(0, 35, 0)
+
+	-- Trigger Physics Ragdoll State & Explode Head Stack
+	RagdollModule.TriggerRagdoll(victim, Config.RAGDOLL_DURATION)
+	LootExplosion.ScatterCoins(victim)
+
+	-- Fire client ragdoll & knockback launch event to victim
+	local ragdollRemote = Remotes.Get("TriggerRagdoll")
+	if ragdollRemote then
+		ragdollRemote:FireClient(victim, Config.RAGDOLL_DURATION, launchVector)
+	end
+
+	-- Fire client hit visualizer event
+	local hitEvent = Remotes.Get("DashBumpHit")
+	if hitEvent then
+		hitEvent:FireAllClients(attackerPlayer or victim, victim.Name, victimHrp.Position, knockbackForce)
+	end
+
+	print(string.format("[CombatServer] %s BUMPED %s! (Launch Force: %.1f, Stack: %d)", attackerPlayer and attackerPlayer.Name or "System", victim.Name, knockbackForce, victimStack))
+end
+
 -- Handle Client Dash Bump Request
 local function handleDashBump(player: Player)
 	local userId = player.UserId
@@ -93,27 +128,9 @@ local function handleDashBump(player: Player)
 		end
 	end
 
-	-- Process all detected victims
+	-- Process all detected victims using full Combat API
 	for victim, _ in pairs(processedVictims) do
-		if PlayerFSM.CanBeBumped(victim) then
-			local victimChar = victim.Character
-			local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
-			if victimHrp then
-				-- Calculate Stack-Scaled Knockback Force
-				local victimStack = StackServer.GetStackCount(victim)
-				local knockbackForce = Config.BUMP_BASE_IMPULSE + (victimStack * Config.BUMP_STACK_IMPULSE_MULTIPLIER)
-				local launchVector = (victimHrp.Position - hrp.Position).Unit * knockbackForce + Vector3.new(0, 35, 0)
-
-				-- Apply Direct Velocity Launch
-				victimHrp.AssemblyLinearVelocity = launchVector
-
-				-- Trigger Physics Ragdoll State & Explode Head Stack
-				RagdollModule.TriggerRagdoll(victim, Config.RAGDOLL_DURATION)
-				LootExplosion.ScatterCoins(victim)
-
-				print(string.format("[CombatServer] %s BUMPED %s! (Launch Force: %.1f)", player.Name, victim.Name, knockbackForce))
-			end
-		end
+		CombatServer.BumpVictim(player, victim)
 	end
 
 	-- Reset FSM State after dash duration
@@ -129,6 +146,13 @@ function CombatServer.Init()
 	local bumpEvent = Remotes.Get("DashBump")
 	if bumpEvent then
 		bumpEvent.OnServerEvent:Connect(handleDashBump)
+	end
+
+	local simBumpEvent = Remotes.Get("SimulateDashBump")
+	if simBumpEvent then
+		simBumpEvent.OnServerEvent:Connect(function(player)
+			CombatServer.BumpVictim(nil, player)
+		end)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)

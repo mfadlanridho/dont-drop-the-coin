@@ -25,6 +25,8 @@ local REMOTE_NAMES = {
 	"PickupCoin",
 	"UpdateStack",
 	"DashBump",
+	"DashBumpHit",
+	"SimulateDashBump",
 	"BankCoins",
 	"TriggerRagdoll",
 	"UpdateHUD",

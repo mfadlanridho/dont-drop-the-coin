@@ -215,6 +215,41 @@ function DebugGuiController.start()
 		renderNow()
 	end)
 
+	DebugGuiController.setButtonRow("combat", "simulate_dash_self", "Simulate Incoming Dash (Full API)", "TRIGGER DASH BUMP HIT", function()
+		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+		local Remotes = require(Shared:WaitForChild("Remotes"))
+		local simRemote = Remotes.Get("SimulateDashBump")
+		if simRemote then
+			simRemote:FireServer()
+		end
+	end, "Combat Debug", 2)
+
+	DebugGuiController.setButtonRow("combat", "ragdoll_self", "Self Ragdoll Test", "RAGDOLL (2.5s)", function()
+		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+		local Remotes = require(Shared:WaitForChild("Remotes"))
+		local ragdollRemote = Remotes.Get("TriggerRagdoll")
+		if ragdollRemote then
+			ragdollRemote:FireServer(localPlayer, 2.5)
+		end
+	end, "Combat Debug", 2)
+
+	DebugGuiController.setButtonRow("combat", "knockback_self", "Apply Knockback Launch", "LAUNCH KNOCKBACK", function()
+		local char = localPlayer.Character
+		if char then
+			local hrp = char:FindFirstChild("HumanoidRootPart") :: Part
+			if hrp then
+				local launchVec = hrp.CFrame.LookVector * -50 + Vector3.new(0, 45, 0)
+				hrp.AssemblyLinearVelocity = launchVec
+				local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+				local Remotes = require(Shared:WaitForChild("Remotes"))
+				local ragdollRemote = Remotes.Get("TriggerRagdoll")
+				if ragdollRemote then
+					ragdollRemote:FireServer(localPlayer, 2.5)
+				end
+			end
+		end
+	end, "Combat Debug", 2)
+
 	markDirty()
 	renderNow()
 	print("[DebugGui] initial render complete")
