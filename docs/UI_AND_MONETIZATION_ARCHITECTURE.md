@@ -17,12 +17,11 @@ game.StarterGui
 │   ├── AbilityBar                   -- Touch button / 'E' key Dash Bump with radial cooldown
 │   └── LeaderboardFrame             -- Server stack leaderboard
 │
-├── 2️⃣ Menus & Tabs (ScreenGui) ────── DisplayOrder = 5 (Menus) & 10 (Tabs)
+├── 2️⃣ Menus & Tabs (ScreenGui) ────── DisplayOrder = 5 (Menus) & 10 (Tabs / Tabs_mine)
 │   ├── Menus.Toggles                -- Container for HUD navigation buttons (Shop, VIP, Settings)
-│   └── Tabs                         -- Container for modal popup windows:
+│   └── Tabs / Tabs_mine             -- Container for modal popup windows:
 │       ├── Black                    -- Fullscreen dark background overlay (Transparency = 0.5)
-│       ├── Shop                     -- Shop modal window (Passes, Products, Gacha)
-│       ├── Passes                   -- Dedicated Game Pass showcase
+│       ├── Shop                     -- Unified Shop modal window (Passes, Boosters, Gacha)
 │       └── Settings                 -- Audio, graphics, and controls modal
 │
 └── 3️⃣ OverlayGui (ScreenGui) ───────── DisplayOrder = 100, ResetOnSpawn = false
@@ -89,26 +88,12 @@ Universal micro-interaction binder for `GuiButton` and `GuiObject` instances.
 
 Manages sub-category tabs *inside* modal windows (e.g. switching between *Game Passes* and *Products* inside `Shop`).
 
-```lua
-local SubTabManager = require(ReplicatedStorage.Shared.UI.SubTabManager)
-
-local shopSubTabs = SubTabManager.new({
-    buttonsFolder = shopFrame.TabButtons,
-    contentFolder = shopFrame.TabContents,
-    defaultTab = "GamePasses",
-    activeColor = Color3.fromRGB(255, 220, 0),
-    inactiveColor = Color3.fromRGB(180, 180, 180),
-})
-```
-
 ---
 
 ### 📱 `MenuToggleController.client.luau`
 *Location: `src/client/Controllers/MenuToggleController.client.luau`*
 
-Client controller that automatically binds HUD toggle buttons to `OpenFrame.ToggleFrame()`.
-
-- **Mobile Viewport Auto-Scaling**: Monitors `UserInputService.TouchEnabled` and `AbsoluteSize` to automatically scale HUD toggle buttons up to **1.5x scale** on mobile touch screens for easy tapping.
+Client controller that automatically binds HUD toggle buttons to `OpenFrame.ToggleFrame()`. Includes mobile viewport auto-scaling (1.5x scale boost on touch devices).
 
 ---
 
@@ -136,23 +121,45 @@ Managed in **[`tools/monetization/`](file:///Users/ridhomfadlan/Documents/Roblox
 # Developer Products
 npm run products:list
 node tools/monetization/create_product.js "Nuclear Revenge" 29 "Strike back at attacker"
-node tools/monetization/update_product.js <productId> --price=39
 
 # Game Passes
 npm run gamepasses:list
 node tools/monetization/create_gamepass.js "Super Glue" 399 "Retain 50% stack on ragdoll"
-node tools/monetization/update_gamepass.js <gamePassId> --price=499
-```
-
-Environment config required in `.env`:
-```env
-ROBLOX_OPEN_CLOUD_KEY=your_api_key_here
-ROBLOX_UNIVERSE_ID=your_universe_id_here
 ```
 
 ---
 
-## 🔊 4. AUDIO ASSET PIPELINE
+## 🛍️ 4. RUNTIME SHOP SYSTEM & CATALOG BINDING
+
+The runtime client shop execution flow is driven by 3 modular files:
+
+```
+Shop Cards in Roblox Studio (Buy.Product StringValue = "Super Glue")
+        │
+        ▼
+ShopSystem.client.luau  ──► Scans ScrollingFrame for frames named "Buy"
+        │
+        ▼
+PromptService.luau      ──► Looks up offer in CatalogIndex & fetches live Robux price
+        │
+        ▼
+MarketplaceService      ──► Prompts Game Pass / Developer Product purchase window
+```
+
+1. **[`src/shared/Monetization/CatalogIndex.luau`](file:///Users/ridhomfadlan/Documents/Roblox%20Files/dont-drop-the-coin/src/shared/Monetization/CatalogIndex.luau)**:
+   - Registers product keys, item types (`gamePass` vs `developerProduct`), Roblox Asset IDs, and legacy aliases (`SuperGlueCard`, `MegaDashCard`, etc.).
+2. **[`src/client/Monetization/PromptService.luau`](file:///Users/ridhomfadlan/Documents/Roblox%20Files/dont-drop-the-coin/src/client/Monetization/PromptService.luau)**:
+   - Caches and queries live Robux prices via `MarketplaceService:GetProductInfo()`.
+   - Triggers `MarketplaceService:PromptGamePassPurchase()` or `MarketplaceService:PromptProductPurchase()`.
+3. **[`src/client/Shop/ShopSystem.client.luau`](file:///Users/ridhomfadlan/Documents/Roblox%20Files/dont-drop-the-coin/src/client/Shop/ShopSystem.client.luau)**:
+   - Automatically scans `Shop.ScrollingFrame` for all `Buy` frames.
+   - Reads `Product.Value` (`StringValue`) to resolve the offer key.
+   - Dynamically updates price text labels (`Cost.Text`).
+   - Connects `ButtonFunctionality.SetupButton()` to `Buy.TextButton` to prompt purchases on click.
+
+---
+
+## 🔊 5. AUDIO ASSET PIPELINE
 
 Sound assets live in `ReplicatedStorage`:
 
@@ -165,5 +172,3 @@ game.ReplicatedStorage
         ├── Open_UI (Sound)   -- Modal open SFX
         └── UI_Close (Sound)  -- Modal close SFX
 ```
-
-All UI modules check for these sounds safely; if missing, UI actions function normally without erroring.
