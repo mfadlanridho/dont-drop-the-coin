@@ -108,6 +108,7 @@ function DebugGuiView.new(playerGui)
 	tabBar.Name = "Tabs"
 	tabBar.Active = true
 	tabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+	tabBar.ScrollingDirection = Enum.ScrollingDirection.X
 	tabBar.BackgroundTransparency = 1
 	tabBar.BorderSizePixel = 0
 	tabBar.CanvasSize = UDim2.new()
@@ -131,6 +132,7 @@ function DebugGuiView.new(playerGui)
 	contentFrame.Name = "Content"
 	contentFrame.Active = true
 	contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	contentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 	contentFrame.BackgroundColor3 = PANEL_SURFACE
 	contentFrame.BorderSizePixel = 0
 	contentFrame.CanvasSize = UDim2.new()
