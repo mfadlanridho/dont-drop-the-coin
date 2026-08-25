@@ -13,10 +13,10 @@ local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM")
 local RagdollModule = {}
 
 -- Create BallSocketConstraint replacement for a Motor6D joint
-local function createRagdollJoint(motor: Motor6D): (BallSocketConstraint, Attachment, Attachment)?
-	local part0 = motor.Part0
-	local part1 = motor.Part1
-	if not part0 or not part1 then return nil end
+local function createRagdollJoint(motor: Instance)
+	local part0 = (motor :: Motor6D).Part0
+	local part1 = (motor :: Motor6D).Part1
+	if not part0 or not part1 then return nil, nil, nil end
 
 	local att0 = Instance.new("Attachment")
 	att0.Name = "RagdollAttachment0_" .. motor.Name

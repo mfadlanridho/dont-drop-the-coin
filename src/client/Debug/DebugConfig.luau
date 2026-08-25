@@ -11,4 +11,7 @@ return {
 	MoveDirection = {
 		ShowGizmos = false, -- Set to true to draw character movement direction vectors
 	},
+	DashBump = {
+		ShowGizmos = true, -- Set to true to draw 3D Spherecast and swept collision volume gizmos
+	},
 }
