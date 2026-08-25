@@ -2,10 +2,12 @@
 --[[
     PlayerFSM.luau
     Manager instantiating OOP StateMachine per player with registered state definitions (Normal, Dashing, Ragdolled, SafeZone).
+    Includes network attribute replication (FSMState) to keep Server and Client states perfectly synced across the network.
     Location: src/shared/Utils/PlayerFSM.luau (Syncs to ReplicatedStorage.Shared.Utils.PlayerFSM)
 --]]
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local Utils = script.Parent
 local StateMachine = require(Utils:WaitForChild("StateMachine"))
@@ -16,6 +18,7 @@ local DashingState = require(States:WaitForChild("DashingState"))
 local RagdollState = require(States:WaitForChild("RagdollState"))
 local SafeZoneState = require(States:WaitForChild("SafeZoneState"))
 
+local ATTRIBUTE_NAME = "FSMState"
 local PlayerMachines: { [Player]: StateMachine.StateMachineInstance } = {}
 local PlayerFSM = {}
 
@@ -33,7 +36,7 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 		machine:registerState(RagdollState)
 		machine:registerState(SafeZoneState)
 
-		-- Set initial state
+		-- Initial State Context
 		local char = player.Character
 		local context: StateMachine.StateContext = {
 			player = player,
@@ -41,19 +44,48 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 			humanoid = char and char:FindFirstChildOfClass("Humanoid"),
 			rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
 		}
-		machine:setState("Normal", context)
+
+		local initialState = player:GetAttribute(ATTRIBUTE_NAME) or "Normal"
+		machine:setState(initialState, context)
 		PlayerMachines[player] = machine
+
+		-- Server: Initialize network attribute
+		if RunService:IsServer() and not player:GetAttribute(ATTRIBUTE_NAME) then
+			player:SetAttribute(ATTRIBUTE_NAME, initialState)
+		end
+
+		-- Client: Listen to server attribute updates to sync local FSM
+		if RunService:IsClient() then
+			player:GetAttributeChangedSignal(ATTRIBUTE_NAME):Connect(function()
+				local serverState = player:GetAttribute(ATTRIBUTE_NAME)
+				if serverState and machine:getCurrentStateName() ~= serverState then
+					local updatedChar = player.Character
+					local updatedContext: StateMachine.StateContext = {
+						player = player,
+						character = updatedChar,
+						humanoid = updatedChar and updatedChar:FindFirstChildOfClass("Humanoid"),
+						rootPart = updatedChar and updatedChar:FindFirstChild("HumanoidRootPart") :: BasePart,
+					}
+					machine:setState(serverState, updatedContext)
+				end
+			end)
+		end
 	end
 	return machine
 end
 
 -- Get Current Player State Name
 function PlayerFSM.GetState(player: Player): string
+	local attrState = player:GetAttribute(ATTRIBUTE_NAME)
+	if attrState then
+		return attrState
+	end
+
 	local machine = getOrCreateMachine(player)
 	return machine:getCurrentStateName() or "Normal"
 end
 
--- Set Player State with Lifecycle Validation
+-- Set Player State with Lifecycle Validation & Network Replication
 function PlayerFSM.SetState(player: Player, newStateName: string): boolean
 	local machine = getOrCreateMachine(player)
 	local char = player.Character
@@ -63,7 +95,16 @@ function PlayerFSM.SetState(player: Player, newStateName: string): boolean
 		humanoid = char and char:FindFirstChildOfClass("Humanoid"),
 		rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
 	}
-	return machine:setState(newStateName, context)
+
+	local success = machine:setState(newStateName, context)
+	if success then
+		-- Replicate state change from Server to Client via Attribute
+		if RunService:IsServer() then
+			player:SetAttribute(ATTRIBUTE_NAME, newStateName)
+		end
+	end
+
+	return success
 end
 
 -- Check if Player Can Cast Dash Bump

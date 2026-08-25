@@ -1,6 +1,7 @@
 -- MenuToggleController Client Script
 -- Automatically binds HUD buttons to toggle target frames via OpenFrame
 -- Supports PlayerGui.Menus.Toggles, PlayerGui.ScreenGui.Toggles, and custom layouts
+-- Dynamically updates ScrollingFrame CanvasSize for smooth scrolling
 -- Place in: src/client/Controllers/MenuToggleController.client.luau -> StarterPlayer.StarterPlayerScripts.Client.Controllers.MenuToggleController
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -54,6 +55,27 @@ local function findScale(button)
 	end
 
 	return nil
+end
+
+local function setupAutoScrollingCanvas(scrollingFrame)
+	if not scrollingFrame or not scrollingFrame:IsA("ScrollingFrame") then return end
+
+	local layout = scrollingFrame:FindFirstChildOfClass("UIListLayout") or scrollingFrame:FindFirstChildOfClass("UIGridLayout")
+	if not layout then return end
+
+	local function updateCanvas()
+		task.wait()
+		scrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.None
+		scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 40)
+		scrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+		scrollingFrame.Active = true
+		scrollingFrame.ScrollBarThickness = 8
+	end
+
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+	scrollingFrame.ChildAdded:Connect(updateCanvas)
+	scrollingFrame.ChildRemoved:Connect(updateCanvas)
+	updateCanvas()
 end
 
 local function bindToggle(toggleFrame)
@@ -129,7 +151,19 @@ end
 local function setupToggleListeners()
 	local playerGui = player:WaitForChild("PlayerGui")
 	
-	-- 1. Check PlayerGui.Menus.Toggles (imported from Roblox AI Workspace)
+	-- Connect ScrollingFrame canvas auto-scaling across all tabs
+	for _, desc in ipairs(playerGui:GetDescendants()) do
+		if desc:IsA("ScrollingFrame") then
+			setupAutoScrollingCanvas(desc)
+		end
+	end
+	playerGui.DescendantAdded:Connect(function(desc)
+		if desc:IsA("ScrollingFrame") then
+			setupAutoScrollingCanvas(desc)
+		end
+	end)
+
+	-- 1. Check PlayerGui.Menus.Toggles
 	local menusGui = playerGui:WaitForChild("Menus", 5)
 	if menusGui then
 		local togglesFolder = menusGui:FindFirstChild("Toggles") or menusGui:WaitForChild("Toggles", 5)

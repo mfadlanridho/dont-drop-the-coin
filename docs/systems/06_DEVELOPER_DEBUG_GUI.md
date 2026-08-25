@@ -53,7 +53,13 @@ src/client/Debug/
 - Runs automatically when the player joins.
 - Updates baseline statistics every 0.2s:
   - **Session Tab**: Studio Status, Player Name, User ID, Place ID, Job ID, FPS counter.
+  - **Player State Tab**: FSM State (`Normal`, `Dashing`, `Ragdolled`, `SafeZone`), Humanoid Physics State, `CanDash`, `CanBeBumped`.
   - **Character Tab**: Character Loaded, Root Position, MoveDirection, Move Magnitude, Floor Material.
+
+### 4. Network Replicated `PlayerFSM` Integration
+- **Server Replication**: `PlayerFSM.SetState(player, stateName)` updates the internal state machine on the server and sets `player:SetAttribute("FSMState", stateName)`.
+- **Client Sync**: `PlayerFSM.GetState(player)` reads `player:GetAttribute("FSMState")`, and listens to `GetAttributeChangedSignal("FSMState")` to synchronize the client's local state machine in real time.
+- **Decoupled Input Architecture**: `InputController.luau` purely handles user input and fires remote events. State transitions (`Normal` $\rightarrow$ `Dashing` $\rightarrow$ `Normal`) are managed authoritatively by `CombatServer.luau` and replicated automatically to all clients.
 
 ---
 

@@ -6,14 +6,17 @@
 --]]
 
 local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
 
 local ACTION_DASH_BUMP = "DashBumpAction"
 local lastCastTime = 0
+local localPlayer = Players.LocalPlayer
 
 local InputController = {}
 
@@ -24,9 +27,14 @@ local function triggerDashBump()
 		return
 	end
 
+	-- Simple guard check
+	if not PlayerFSM.CanDash(localPlayer) then
+		return
+	end
+
 	lastCastTime = now
 
-	-- Fire Server Remote
+	-- Fire Server Remote (Server manages state transition & attribute replication)
 	local bumpEvent = Remotes.Get("DashBump")
 	if bumpEvent then
 		bumpEvent:FireServer()
