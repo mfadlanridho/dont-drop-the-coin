@@ -14,8 +14,6 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 
-local LocalPlayer = Players.LocalPlayer
-
 local PlayerStackCounts: { [Player]: number } = {}
 local PlayerVisualModels: { [Player]: { Part } } = {}
 

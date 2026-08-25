@@ -36,7 +36,9 @@ Config.DESPAWN_DROPPED_COIN_TIME = 10 -- Lifetime of dropped explosion coins
 
 -- Combat & Physics
 Config.BUMP_COOLDOWN = 5 -- Cooldown in seconds for Dash Bump
-Config.BUMP_BASE_IMPULSE = 50 -- Base knockback force
+Config.DASH_DISTANCE = 15 -- Exact forward dash distance in studs
+Config.DASH_DURATION = 0.3 -- Duration of forward dash in seconds
+Config.BUMP_BASE_IMPULSE = 50 -- Base knockback force applied to victim
 Config.BUMP_STACK_IMPULSE_MULTIPLIER = 2 -- Extra knockback force per stack height
 Config.RAGDOLL_DURATION = 2.5 -- Duration of physics ragdoll in seconds
 

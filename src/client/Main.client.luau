@@ -7,7 +7,9 @@
 
 local Controllers = script.Parent:WaitForChild("Controllers")
 local StackVisualizer = require(Controllers:WaitForChild("StackVisualizer"))
+local InputController = require(Controllers:WaitForChild("InputController"))
 
 StackVisualizer.Init()
+InputController.Init()
 
 print("[ClientMain] All client controllers initialized successfully!")

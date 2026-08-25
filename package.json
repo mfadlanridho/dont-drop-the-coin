@@ -1,0 +1,17 @@
+{
+  "name": "dont-drop-the-coin",
+  "version": "1.0.0",
+  "description": "Don't Drop the Coin Roblox project monetization scripts",
+  "main": "tools/monetization/roblox_api.js",
+  "scripts": {
+    "products:list": "node tools/monetization/list_products.js",
+    "products:create": "node tools/monetization/create_product.js",
+    "products:update": "node tools/monetization/update_product.js",
+    "gamepasses:list": "node tools/monetization/list_gamepasses.js",
+    "gamepasses:create": "node tools/monetization/create_gamepass.js",
+    "gamepasses:update": "node tools/monetization/update_gamepass.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
