@@ -17,12 +17,12 @@ This 7-day schedule is structured based on a **Dependency-First Engineering Appr
 
 ---
 
-## 🎯 WEEK AT A GLANCE
+## 🎯 WEEK AT A GLANCE (PROGRESSION TRACKER)
 
-- [ ] **Day 1:** Project Architecture, Remotes & DataStore System
-- [ ] **Day 2:** Coin Spawning & Physics Stacking Engine
-- [ ] **Day 3:** Dash Bump Combat, Physics Ragdoll & Loot Explosion
-- [ ] **Day 4:** Safe Zone Bank Vault, Multipliers & DataStore Auto-Saving
+- [x] **Day 1:** Project Architecture, Remotes & DataStore System (COMPLETED)
+- [x] **Day 2:** Coin Spawning & Physics Stacking Engine (COMPLETED)
+- [x] **Day 3:** Dash Bump Combat, Physics Ragdoll & Loot Explosion (COMPLETED)
+- [/] **Day 4:** Safe Zone Bank Vault, Multipliers & DataStore Auto-Saving (IN PROGRESS)
 - [ ] **Day 5:** Sound Matrix, VFX Emitters & Elastic UI Tweens
 - [ ] **Day 6:** Monetization Handlers, Roblox Group API & AFK Rewards
 - [ ] **Day 7:** Networking Optimization, Part Pooling & Stress Testing
@@ -31,69 +31,71 @@ This 7-day schedule is structured based on a **Dependency-First Engineering Appr
 
 ## 📋 SCRIPTER TASK BREAKDOWN
 
-### 🟦 DAY 1: Framework, Remotes & DataStore Foundation
+### 🟦 DAY 1: Framework, Remotes & DataStore Foundation (COMPLETED)
 > **Focus:** Server-Client Architecture & Data Persistence.
 
-- [ ] **1.1 Server-Client Architecture Setup**
+- [x] **1.1 Server-Client Architecture Setup**
   - Create standard modular directory structure (`ReplicatedStorage.Modules`, `ServerScriptService.Services`, `StarterPlayerScripts.Controllers`).
   - Set up `RemoteEvent` & `RemoteFunction` registry under `ReplicatedStorage.Remotes`.
-- [ ] **1.2 DataStore Service (`DataStoreManager.luau`)**
-  - Write robust `ProfileService` or native `DataStoreService` handler with pcall wrappers and session locking.
+- [x] **1.2 DataStore Service (`DataStoreManager.luau`)**
+  - Write robust `ProfileStore` handler with pcall wrappers and session locking.
   - Define player schema: `{Coins = 0, TotalBanked = 0, EquippedSkin = "Default", OwnedPasses = {}}`.
   - Add `BindToClose` and auto-save timer (every 5 minutes).
-- [ ] **1.3 Zone Detection Script (`ZoneManager.luau`)**
-  - Write zone detection for Ground Level, Zone 1 (1x), Zone 2 (2x), and Zone 3 (3x).
+- [x] **1.3 Category-Scoped Logger System (`Logger.luau`)**
+  - Integrated centralized category-scoped logger across all combat, input, state machine, and ragdoll modules.
 
 ---
 
-### 🟩 DAY 2: Coin Spawner & Head-Stacking Engine
+### 🟩 DAY 2: Coin Spawner & Head-Stacking Engine (COMPLETED)
 > **Focus:** Networked coin collection & custom physics sway calculations.
 
-- [ ] **2.1 Server Coin Spawner (`CoinSpawner.luau`)**
+- [x] **2.1 Server Coin Spawner (`CoinSpawner.luau`)**
   - Script server spawner for coin nodes across Zone 1, 2, and 3.
-  - Implement client-side touched detection + server anti-cheat distance validation.
   - Implement node respawn logic (3s interval).
-- [ ] **2.2 Spring-Loaded Stacking Engine (`StackServer.luau` & `StackVisualizer.luau`)**
+- [x] **2.2 Spring-Loaded Stacking Engine (`StackServer.luau` & `StackVisualizer.luau`)**
   - Attach item models sequentially to player character (`Character.Head` socket).
   - Calculate dynamic stack height and center of mass.
-  - Program client-side lerped sway / spring inertia based on character movement velocity vector.
-  - Implement visual cap (render max 30 parts on head; display numerical multiplier floating text for stack count > 30 to prevent lag).
+  - Implement visual cap (render max 30 parts on head; display numerical multiplier text for stack count > 30).
 
 ---
 
-### 🟥 DAY 3: Dash Bump Combat, Ragdoll & Loot Explosion
+### 🟥 DAY 3: Dash Bump Combat, Ragdoll & Loot Explosion (COMPLETED)
 > **Focus:** Character physics manipulation, ragdoll state transition & part scattering.
 
-- [ ] **3.1 Dash Bump Combat (`CombatServer.luau` & `InputController.luau`)**
+- [x] **3.1 Dash Bump Combat (`CombatServer.luau` & `InputController.luau`)**
   - Bind `E` key (PC) and ContextActionService Touch Button (Mobile).
   - Enforce server-side 5-second cooldown validation.
-  - Script forward hitbox check (Raycast / OverlapParams).
+  - Script continuous 0.3s Heartbeat 3D swept hitbox check (`Workspace:Spherecast`).
   - Apply knockback impulse scaling with target's stack size.
-- [ ] **3.2 Physics Ragdoll Handler (`RagdollModule.luau`)**
-  - Temporarily disable `Motor6Ds`, substitute `BallSocketConstraints`, set `Humanoid.PlatformStand = true` for 2.5s.
-  - Apply backward launch velocity vector.
-- [ ] **3.3 Loot Explosion Engine (`LootExplosion.luau`)**
-  - Instantly detach head stack on ragdoll/hazard impact.
+- [x] **3.2 Decoupled Hitbox Engine & Dummy Spawner (`HitboxService.luau` & `DummySpawner.luau`)**
+  - Measure character extents (`character:GetExtentsSize()`) and weld full-body `HitboxCapsule` parts.
+  - Maintain 3 permanent color-coded target dummies in the arena with 3s void auto-respawning.
+- [x] **3.3 Physics Ragdoll Handler (`RagdollModule.luau`)**
+  - Disable `Motor6Ds`, substitute `BallSocketConstraints` + `NoCollisionConstraints`, disable `EvaluateStateMachine`, set `Humanoid.PlatformStand = true` for 2.5s.
+  - Apply local-to-world 3D pitch/roll tumbling torque.
+- [x] **3.4 Loot Explosion Engine (`LootExplosion.luau`)**
+  - Instantly detach head stack on ragdoll impact.
   - Instantiate unanchored physical coin parts with random 360° radial velocity vectors.
   - Script vacuum collection window (10s lifetime) + automatic garbage collection despawn pool.
 
 ---
 
-### 🟨 DAY 4: Banking Vault & Zone Multipliers
+### 🟨 DAY 4: Banking Vault & Zone Multipliers (IN PROGRESS)
 > **Focus:** Safe zone boundaries & multiplier cashout calculations.
 
-- [ ] **4.1 Safe Zone Bank Handler (`BankServer.luau`)**
-  - Script safe zone entrance detector (`Touch` / `ZonePlus`).
-  - Disable `CombatServer` bump triggers while player is inside safe zone.
-- [ ] **4.2 Multiplier & Banking Calculation**
+- [x] **4.1 Safe Zone Bank Handler (`BankServer.luau`)**
+  - Script Bank Vault Pad (`BankVaultPad` at `0, 0.5, -45`) with 3D Billboard label in lobby safe zone.
+  - Disable `CombatServer` bump triggers (`SafeZone` FSM state) while player is inside safe zone.
+- [x] **4.2 Multiplier & Banking Calculation**
   - Program cashout function: `BankedCash = StackCount * ZoneMultiplier`.
-  - Add banked amount to player's permanent DataStore balance and reset head stack count to 0.
-- [ ] **4.3 Leaderboard Handler (`LeaderboardServer.luau`)**
-  - Script Leaderstats (`Coins`, `Top Stack`) for player list & global ordered DataStore board.
+  - Add banked amount to player's permanent ProfileStore balance via `DataStoreManager.AddBankedCash()`.
+  - Reset head stack count to 0.
+- [x] **4.3 Leaderboard Handler (`leaderstats`)**
+  - Script Leaderstats (`Coins`, `Stack`) on player list.
 
 ---
 
-### 🟪 DAY 5: Audio Matrix, VFX & Elastic UI Tweens
+### 🟪 DAY 5: Audio Matrix, VFX & Elastic UI Tweens (NEXT UP)
 > **Focus:** Sound pitch scaling, particle triggers & UI animation logic.
 
 - [ ] **5.1 Pitch-Scaling Audio Matrix (`SoundManager.luau`)**

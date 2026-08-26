@@ -229,6 +229,15 @@ function DebugGuiController.start()
 		end
 	end, "Combat Debug", 2)
 
+	DebugGuiController.setButtonRow("combat", "bank_stack", "Cash Out Head Stack to Vault", "BANK CURRENT STACK", function()
+		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+		local Remotes = require(Shared:WaitForChild("Remotes"))
+		local bankRemote = Remotes.Get("BankCoins")
+		if bankRemote then
+			bankRemote:FireServer()
+		end
+	end, "Combat Debug", 2)
+
 	DebugGuiController.setButtonRow("combat", "spawn_dummy", "Spawn Target Dummy (1-Player Test)", "SPAWN TEST DUMMY", function()
 		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 		local Remotes = require(Shared:WaitForChild("Remotes"))
