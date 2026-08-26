@@ -2,14 +2,16 @@
 --[[
     RagdollModule.luau
     Handles 2.5-second physics ragdoll state transitions with BallSocketConstraint joints and NoCollisionConstraint limb solvers.
-    Location: src/server/Services/RagdollModule.luau (Syncs to ServerScriptService.Server.Services.RagdollModule)
+    Location: src/shared/Utils/RagdollModule.luau (Syncs to ReplicatedStorage.Shared.Utils.RagdollModule)
 --]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
+local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
 
+local log = Logger.create("Ragdoll")
 local RagdollModule = {}
 
 -- Create BallSocketConstraint & NoCollisionConstraint replacements for a Motor6D joint
@@ -62,6 +64,7 @@ function RagdollModule.TriggerRagdoll(player: Player, duration: number?): boolea
 	if not transitionSuccess then return false end
 
 	local ragdollTime = duration or Config.RAGDOLL_DURATION
+	log(string.format("Triggering ragdoll state for %s (Duration: %.1fs)", player.Name, ragdollTime))
 
 	-- Set Humanoid to Physics state & PlatformStand
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
@@ -129,7 +132,7 @@ function RagdollModule.TriggerRagdoll(player: Player, duration: number?): boolea
 			humanoid.AutoRotate = true
 			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 			PlayerFSM.SetState(player, "Normal")
-			print(string.format("[RagdollModule] %s recovered from physical ragdoll state.", player.Name))
+			log(string.format("%s recovered from physical ragdoll state.", player.Name))
 		end
 	end)
 

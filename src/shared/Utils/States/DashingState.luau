@@ -5,19 +5,16 @@
     Location: src/shared/Utils/States/DashingState.luau
 --]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local StateMachine = require(Shared:WaitForChild("Utils"):WaitForChild("StateMachine"))
+local MovementMotor = require(Shared:WaitForChild("Utils"):WaitForChild("MovementMotor"))
+local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
 
-local StateMachine = require(script.Parent.Parent:WaitForChild("StateMachine"))
-
-local MovementMotor: any
-if RunService:IsClient() then
-	local ClientScripts = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client")
-	MovementMotor = require(ClientScripts:WaitForChild("MovementMotor"))
-end
+local log = Logger.create("Combat")
 
 local motorInstance: any
 if RunService:IsClient() then
@@ -41,7 +38,7 @@ local DashingState: StateMachine.StateDefinition = {
 	end,
 
 	enter = function(context, fromState)
-		print(string.format("[DashingState] %s casting Dash Bump!", context.player and context.player.Name or "Unknown"))
+		log(string.format("%s casting Dash Bump!", context.player and context.player.Name or "Unknown"))
 
 		local humanoid = context.humanoid
 		local rootPart = context.rootPart

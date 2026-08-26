@@ -25,13 +25,26 @@ function StackServer.AddCoin(player: Player, zoneMultiplier: number?): number
 	local stackData = PlayerStacks[userId]
 	stackData.Count = stackData.Count + 1
 
-	-- Replicate Stack Update to All Clients (For local visual rendering)
+	-- Replicate Stack Update to All Clients
 	local updateEvent = Remotes.Get("UpdateStack")
 	if updateEvent then
 		updateEvent:FireAllClients(player, stackData.Count)
 	end
 
 	return stackData.Count
+end
+
+-- Set Explicit Stack Count (for testing/debug)
+function StackServer.SetStackCount(player: Player, count: number): number
+	local userId = player.UserId
+	PlayerStacks[userId] = { Count = math.max(0, count) }
+
+	local updateEvent = Remotes.Get("UpdateStack")
+	if updateEvent then
+		updateEvent:FireAllClients(player, count)
+	end
+
+	return count
 end
 
 -- Clear Player Stack (used on banking or ragdoll explosion)
@@ -60,17 +73,43 @@ function StackServer.GetStackCount(player: Player): number
 	return stackData and stackData.Count or 0
 end
 
--- Clean up on player leave
+-- Clean up on player leave and sync initial stacks
 function StackServer.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		PlayerStacks[player.UserId] = nil
 	end)
 
-	Players.PlayerAdded:Connect(function(player)
+	local function onCharacterSpawned(player: Player)
+		-- Start player with 3 coins for immediate visual stack & combat test
+		StackServer.SetStackCount(player, 3)
+	end
+
+	local function onPlayerJoined(player: Player)
 		player.CharacterAdded:Connect(function()
-			StackServer.ClearStack(player)
+			onCharacterSpawned(player)
 		end)
-	end)
+		if player.Character then
+			onCharacterSpawned(player)
+		end
+
+		-- Sync all existing player stacks to newly connected client after 1s
+		task.delay(1, function()
+			local updateEvent = Remotes.Get("UpdateStack")
+			if updateEvent then
+				for otherPlayer, data in pairs(PlayerStacks) do
+					local p = typeof(otherPlayer) == "number" and Players:GetPlayerByUserId(otherPlayer) or otherPlayer
+					if p and data.Count > 0 then
+						updateEvent:FireClient(player, p, data.Count)
+					end
+				end
+			end
+		end)
+	end
+
+	Players.PlayerAdded:Connect(onPlayerJoined)
+	for _, p in ipairs(Players:GetPlayers()) do
+		onPlayerJoined(p)
+	end
 end
 
 return StackServer

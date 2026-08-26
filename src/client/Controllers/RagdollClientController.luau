@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared:WaitForChild("Remotes"))
-local RagdollModule = require(script.Parent.Parent.Parent:WaitForChild("server"):WaitForChild("Services"):WaitForChild("RagdollModule"))
+local RagdollModule = require(Shared:WaitForChild("Utils"):WaitForChild("RagdollModule"))
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -36,7 +36,7 @@ function RagdollClientController.Init()
 		end)
 	end
 
-	print("[RagdollClientController] Client ragdoll remote listener initialized.")
+	print("[RagdollClientController] Client ragdoll remote listener initialized successfully.")
 end
 
 return RagdollClientController

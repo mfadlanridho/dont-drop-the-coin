@@ -237,15 +237,22 @@ function DebugGuiController.start()
 		local char = localPlayer.Character
 		if char then
 			local hrp = char:FindFirstChild("HumanoidRootPart") :: Part
+			local torso = (char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or hrp) :: Part
 			if hrp then
-				local launchVec = hrp.CFrame.LookVector * -50 + Vector3.new(0, 45, 0)
-				hrp.AssemblyLinearVelocity = launchVec
+				local launchVec = hrp.CFrame.LookVector * -60 + Vector3.new(0, 45, 0)
 				local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 				local Remotes = require(Shared:WaitForChild("Remotes"))
 				local ragdollRemote = Remotes.Get("TriggerRagdoll")
 				if ragdollRemote then
 					ragdollRemote:FireServer(localPlayer, 2.5)
 				end
+
+				task.defer(function()
+					hrp.AssemblyLinearVelocity = launchVec
+					if torso and torso ~= hrp then
+						torso.AssemblyLinearVelocity = launchVec
+					end
+				end)
 			end
 		end
 	end, "Combat Debug", 2)

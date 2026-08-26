@@ -13,10 +13,13 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
+local RagdollModule = require(Shared:WaitForChild("Utils"):WaitForChild("RagdollModule"))
+local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
+
+local log = Logger.create("Combat")
 
 local Services = script.Parent
 local StackServer = require(Services:WaitForChild("StackServer"))
-local RagdollModule = require(Services:WaitForChild("RagdollModule"))
 local LootExplosion = require(Services:WaitForChild("LootExplosion"))
 
 local LastBumpTime: { [number]: number } = {}
@@ -24,7 +27,10 @@ local CombatServer = {}
 
 -- Execute Full Combat Bump API on a Victim
 function CombatServer.BumpVictim(attackerPlayer: Player?, victim: Player)
-	if not PlayerFSM.CanBeBumped(victim) then return end
+	if not PlayerFSM.CanBeBumped(victim) then
+		log(string.format("Victim %s cannot be bumped (FSMState: %s)", victim.Name, PlayerFSM.GetState(victim)))
+		return
+	end
 	local victimChar = victim.Character
 	local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
 	if not victimHrp then return end
@@ -54,29 +60,38 @@ function CombatServer.BumpVictim(attackerPlayer: Player?, victim: Player)
 		hitEvent:FireAllClients(attackerPlayer or victim, victim.Name, victimHrp.Position, knockbackForce)
 	end
 
-	print(string.format("[CombatServer] %s BUMPED %s! (Launch Force: %.1f, Stack: %d)", attackerPlayer and attackerPlayer.Name or "System", victim.Name, knockbackForce, victimStack))
+	log(string.format("%s BUMPED %s! (Launch Force: %.1f, Stack: %d)", attackerPlayer and attackerPlayer.Name or "System", victim.Name, knockbackForce, victimStack))
 end
 
 -- Handle Client Dash Bump Request
 local function handleDashBump(player: Player)
+	log(string.format("handleDashBump received from player %s", player.Name))
 	local userId = player.UserId
 	local now = os.clock()
 
 	-- Server Cooldown Guard (5.0 Seconds)
 	if LastBumpTime[userId] and (now - LastBumpTime[userId]) < Config.BUMP_COOLDOWN then
-		warn(string.format("[CombatServer] %s attempted Dash Bump before cooldown expired!", player.Name))
+		warn(string.format("[CombatServer] %s attempted Dash Bump before cooldown expired! (Remaining: %.2fs)", player.Name, Config.BUMP_COOLDOWN - (now - LastBumpTime[userId])))
 		return
 	end
 
 	-- Check FSM State
-	if not PlayerFSM.CanDash(player) then
+	local canDash = PlayerFSM.CanDash(player)
+	log(string.format("Player %s CanDash check: %s (State: %s)", player.Name, tostring(canDash), PlayerFSM.GetState(player)))
+	if not canDash then
 		return
 	end
 
 	local character = player.Character
-	if not character then return end
+	if not character then
+		warn(string.format("[CombatServer] %s has no character!", player.Name))
+		return
+	end
 	local hrp = character:FindFirstChild("HumanoidRootPart") :: Part
-	if not hrp then return end
+	if not hrp then
+		warn(string.format("[CombatServer] %s character has no HumanoidRootPart!", player.Name))
+		return
+	end
 
 	LastBumpTime[userId] = now
 	PlayerFSM.SetState(player, "Dashing")
@@ -136,6 +151,7 @@ local function handleDashBump(player: Player)
 	-- Reset FSM State after dash duration
 	task.delay(Config.DASH_DURATION, function()
 		if PlayerFSM.GetState(player) == "Dashing" then
+			log(string.format("Resetting FSMState for %s back to Normal after %.1fs", player.Name, Config.DASH_DURATION))
 			PlayerFSM.SetState(player, "Normal")
 		end
 	end)
@@ -146,11 +162,13 @@ function CombatServer.Init()
 	local bumpEvent = Remotes.Get("DashBump")
 	if bumpEvent then
 		bumpEvent.OnServerEvent:Connect(handleDashBump)
+		log("DashBump remote event listener registered successfully.")
 	end
 
 	local simBumpEvent = Remotes.Get("SimulateDashBump")
 	if simBumpEvent then
 		simBumpEvent.OnServerEvent:Connect(function(player)
+			log(string.format("SimulateDashBump remote event received for player %s", player.Name))
 			CombatServer.BumpVictim(nil, player)
 		end)
 	end

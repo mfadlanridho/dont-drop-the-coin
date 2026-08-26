@@ -12,6 +12,9 @@ local RunService = game:GetService("RunService")
 local Utils = script.Parent
 local StateMachine = require(Utils:WaitForChild("StateMachine"))
 local States = Utils:WaitForChild("States")
+local Logger = require(Utils:WaitForChild("Logger"))
+
+local log = Logger.create("FSM")
 
 local NormalState = require(States:WaitForChild("NormalState"))
 local DashingState = require(States:WaitForChild("DashingState"))
@@ -48,7 +51,7 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 	local machine = PlayerMachines[player]
 	if not machine then
 		machine = StateMachine.new(function(oldState, newState)
-			-- State change callback logger
+			log(string.format("[%s] %s -> %s (%s)", player.Name, tostring(oldState), tostring(newState), RunService:IsServer() and "SERVER" or "CLIENT"))
 		end)
 
 		-- Register All State Definitions
@@ -76,9 +79,11 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 		if RunService:IsClient() then
 			player:GetAttributeChangedSignal(ATTRIBUTE_NAME):Connect(function()
 				local serverState = player:GetAttribute(ATTRIBUTE_NAME)
+				log(string.format("Attribute signal: Server set FSMState to %q", tostring(serverState)))
 				if serverState and machine:getCurrentStateName() ~= serverState then
 					local updatedContext = getOrCreateContext(player)
-					machine:setState(serverState, updatedContext)
+					local setSuccess, errReason = machine:setState(serverState, updatedContext)
+					log(string.format("Client setState result: %s (Reason: %s)", tostring(setSuccess), tostring(errReason)))
 				end
 			end)
 		end
@@ -99,9 +104,12 @@ end
 
 -- Set Player State with Lifecycle Validation & Network Replication
 function PlayerFSM.SetState(player: Player, newStateName: string): boolean
+	log(string.format("SetState TargetState: %s | Env: %s", newStateName, RunService:IsServer() and "SERVER" or "CLIENT"))
+
 	-- Server: Only update replicated network attribute
 	if RunService:IsServer() then
 		player:SetAttribute(ATTRIBUTE_NAME, newStateName)
+		log(string.format("Server set attribute %s = %s", ATTRIBUTE_NAME, newStateName))
 		return true
 	end
 
@@ -112,7 +120,7 @@ function PlayerFSM.SetState(player: Player, newStateName: string): boolean
 	return machine:setState(newStateName, context)
 end
 
--- Check if Player Can Cast Dash Bump
+-- Check if Player Can Dash Bump
 function PlayerFSM.CanDash(player: Player): boolean
 	local state = PlayerFSM.GetState(player)
 	return state == "Normal"
