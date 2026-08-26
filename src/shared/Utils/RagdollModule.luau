@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
     RagdollModule.luau
-    Handles 2.5-second physics ragdoll state transitions with BallSocketConstraint joints and NoCollisionConstraint limb solvers.
+    Handles 2.5-second physics ragdoll state transitions with BallSocketConstraint joints, NoCollisionConstraint solvers, and 3D CFrame pitch/roll tumbling forces.
     Location: src/shared/Utils/RagdollModule.luau (Syncs to ReplicatedStorage.Shared.Utils.RagdollModule)
 --]]
 
@@ -35,10 +35,10 @@ local function createRagdollJoint(motor: Instance)
 	ballSocket.Attachment0 = att0
 	ballSocket.Attachment1 = att1
 	ballSocket.LimitsEnabled = true
-	ballSocket.UpperAngle = 60
+	ballSocket.UpperAngle = 85
 	ballSocket.TwistLimitsEnabled = true
-	ballSocket.TwistLowerAngle = -45
-	ballSocket.TwistUpperAngle = 45
+	ballSocket.TwistLowerAngle = -75
+	ballSocket.TwistUpperAngle = 75
 	ballSocket.Parent = part1
 
 	-- NoCollisionConstraint to prevent physics solver spasms between connected limb parts
@@ -66,8 +66,15 @@ function RagdollModule.TriggerRagdoll(player: Player, duration: number?): boolea
 	local ragdollTime = duration or Config.RAGDOLL_DURATION
 	log(string.format("Triggering ragdoll state for %s (Duration: %.1fs)", player.Name, ragdollTime))
 
-	-- Set Humanoid to Physics state & PlatformStand
-	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	-- Disable standing states & Humanoid EvaluateStateMachine to prevent HipHeight spring pop forces
+	pcall(function()
+		humanoid.EvaluateStateMachine = false
+	end)
+
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
 	humanoid.PlatformStand = true
 	humanoid.AutoRotate = false
 
@@ -100,6 +107,24 @@ function RagdollModule.TriggerRagdoll(player: Player, duration: number?): boolea
 		end
 	end
 
+	-- Tilt RootPart orientation off-axis on impact so character pitches and rolls
+	local tiltAngleX = (math.random() > 0.5 and 1 or -1) * math.rad(math.random(25, 45))
+	local tiltAngleZ = (math.random() > 0.5 and 1 or -1) * math.rad(math.random(20, 35))
+	hrp.CFrame = hrp.CFrame * CFrame.Angles(tiltAngleX, 0, tiltAngleZ)
+
+	-- Calculate Local Pitch (X-axis) and Local Roll (Z-axis) angular velocity and transform to World Space
+	local localPitch = (math.random() > 0.5 and 1 or -1) * math.random(18, 32)
+	local localRoll = (math.random() > 0.5 and 1 or -1) * math.rad(math.random(15, 28))
+	local localYaw = math.random(-8, 8)
+	local worldTumbleTorque = hrp.CFrame:VectorToWorldSpace(Vector3.new(localPitch, localYaw, localRoll))
+
+	hrp.AssemblyAngularVelocity = worldTumbleTorque
+
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	if torso and torso:IsA("BasePart") then
+		(torso :: BasePart).AssemblyAngularVelocity = worldTumbleTorque
+	end
+
 	-- Recovery Timer (2.5 seconds)
 	task.delay(ragdollTime, function()
 		if character and humanoid and humanoid.Parent then
@@ -128,6 +153,13 @@ function RagdollModule.TriggerRagdoll(player: Player, duration: number?): boolea
 				end
 			end
 
+			-- Re-enable standing states & Humanoid state machine solver & get back up
+			pcall(function()
+				humanoid.EvaluateStateMachine = true
+			end)
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 			humanoid.PlatformStand = false
 			humanoid.AutoRotate = true
 			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)

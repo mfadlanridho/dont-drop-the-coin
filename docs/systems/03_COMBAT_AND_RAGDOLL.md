@@ -1,18 +1,19 @@
 # 📄 SYSTEM 03: DASH BUMP COMBAT, RAGDOLL & LOOT EXPLOSION
 
-This document specifies the OOP StateMachine architecture, MovementMotor integration, AnimationControllerV2 system, Workspace:Spherecast 3D swept hitboxes, BallSocketConstraint physical limb ragdolls, Gizmo debug visualizers, and unanchored loot explosion scattering for **Don't Drop The Coin!**.
+This document specifies the OOP StateMachine architecture, MovementMotor integration, AnimationControllerV2 system, Workspace:Spherecast 3D swept hitboxes, BallSocketConstraint + NoCollisionConstraint physical limb ragdolls, Gizmo debug visualizers, Developer Debug GUI controls, and category-scoped Logger integration for **Don't Drop The Coin!**.
 
 ---
 
 ## 🎯 OBJECTIVES
 1. Enforce strict OOP state management using class-based state definitions with lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) adapted from the *Roblox AI Workspace* pattern (`StateMachine.luau`).
 2. Maintain **persistent context tables** (`PlayerFSM.luau`) per player to guarantee state variables (`dashConnection`) are preserved across `enter()` and `exit()` hooks.
-3. Integrate **`MovementMotor.luau`** (`src/client/MovementMotor.luau`) for unified, leak-proof creation, steering capture (`AutoRotate`), and destruction of `LinearVelocity` physics constraints.
+3. Integrate **`MovementMotor.luau`** (`src/shared/Utils/MovementMotor.luau`) for unified, leak-proof creation, steering capture (`AutoRotate`), and destruction of `LinearVelocity` physics constraints.
 4. Integrate **`AnimationControllerV2`** (`src/client/Animation/`) for client-side preloading, sequence playback, and skill animation management (`Config.DASH_ANIMATION_ID`).
 5. Program the **Dash Bump** ability (`E` key / Mobile touch button) using **`Workspace:Spherecast`** (4.5-stud 3D swept sphere along 15-stud forward path), smooth **parabolic velocity curve** ($6 \cdot t \cdot (1 - t)$ acceleration $\rightarrow$ deceleration), and `motor:destroy()` lifecycle cleanup.
-6. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, dynamic `BallSocketConstraint` physical limb sockets, `Enum.HumanoidStateType.Physics`).
-7. Render 3D object-pooled debug gizmos (`DashBumpGizmoController.luau`) in Studio for trajectory lines, swept wire spheres, and hit labels.
-8. Program the **Loot Explosion Engine**: Detach head stack, scatter glowing unanchored physical coin parts in a 360° radial arc, and enable 10-second vacuum pickups.
+6. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, dynamic `BallSocketConstraint` + `NoCollisionConstraint` physical limb sockets, `Enum.HumanoidStateType.Physics`).
+7. Render 3D object-pooled debug gizmos (`DashBumpGizmoController.luau`) in Studio for trajectory lines, swept wire spheres, red impact hit markers, and golden hit labels.
+8. Integrate **Category-Scoped Logger System** (`Logger.luau`) across `Input`, `Combat`, `FSM`, and `Ragdoll` modules.
+9. Provide interactive **Developer Debug GUI** controls (`Combat Debug` panel) for live in-game testing of knockback, ragdoll, and full combat API simulations.
 
 ---
 
@@ -38,7 +39,8 @@ stateDiagram-v2
 
     state RagdollState {
         [*] --> CreateBallSocketJoints
-        CreateBallSocketJoints --> LaunchImpulse: Apply Stack-Scaled Knockback
+        CreateBallSocketJoints --> EnableNoCollisionConstraints
+        EnableNoCollisionConstraints --> LaunchImpulse: Apply Stack-Scaled Knockback
         LaunchImpulse --> ScatterLootCoins: Detach & Explode Stack (360° Arc)
         ScatterLootCoins --> Recovering: Wait 2.5 Seconds
     }
@@ -55,11 +57,13 @@ stateDiagram-v2
 | **`StateMachine.luau`** | Core OOP State Machine class | Manages lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) |
 | **`PlayerFSM.luau`** | Persistent context & FSM manager | Reuses `PlayerContexts[player]` & manages client hook execution |
 | **`MovementMotor.luau`** | Reusable physics motor class | Handles `LinearVelocity`, steering capture, and `motor:destroy()` |
-| **`CombatServer.luau`** | Server combat & hitbox service | Uses `Workspace:Spherecast` (4.5-stud radius) & direct velocity launch |
-| **`RagdollModule.luau`** | Physics ragdoll transition module | Replaces `Motor6Ds` with physical `BallSocketConstraint` limb joints |
+| **`Logger.luau`** | Category-scoped debug logging | Centralized logging (`Input`, `Combat`, `FSM`, `Ragdoll`) |
+| **`CombatServer.luau`** | Server combat & hitbox service | Exposes `BumpVictim` API, `Spherecast` 3D hitboxes, and launch vectors |
+| **`RagdollModule.luau`** | Physics ragdoll transition module | Replaces `Motor6Ds` with `BallSocketConstraint` & `NoCollisionConstraint` sockets |
 | **`AnimationControllerV2.luau`** | Client animation engine | Handles track loading, preloading, and sequence crossfading |
 | **`DashingState.luau`** | Dash Bump execution state | Uses `MovementMotor` parabolic velocity curve & animation playback |
-| **`DashBumpGizmoController.luau`**| Client debug gizmo controller | Renders cyan trajectory lines, magenta wire spheres, and hit labels |
+| **`DashBumpGizmoController.luau`**| Client debug gizmo controller | Renders cyan sweep lines, red impact trajectory, and golden hit labels |
+| **`DebugGuiController.luau`** | Developer Debug GUI controller | Renders `Combat Debug` panel with full API simulation buttons |
 
 ---
 
@@ -82,7 +86,8 @@ stateDiagram-v2
 
 ## 🛠️ API & REMOTES CONTRACT
 
-- **`Remotes.DashBump` (`RemoteEvent`)**:
-  - `Client -> Server`: `DashBump:FireServer()`
-- **`Remotes.TriggerRagdoll` (`RemoteEvent`)**:
-  - `Server -> Client`: `TriggerRagdoll:FireClient(victimPlayer, duration)`
+- **`CombatServer.BumpVictim(attackerPlayer, victimPlayer)`**: Server API to trigger complete combat bump pipeline (knockback, 360° stack explosion, 2.5s ragdoll, and client hit visualizers).
+- **`Remotes.DashBump` (`RemoteEvent`)**: `Client -> Server`: `DashBump:FireServer()`
+- **`Remotes.DashBumpHit` (`RemoteEvent`)**: `Server -> Client`: `DashBumpHit:FireAllClients(attacker, victimName, hitPos, force)`
+- **`Remotes.TriggerRagdoll` (`RemoteEvent`)**: `Server -> Client`: `TriggerRagdoll:FireClient(victimPlayer, duration, launchVector)`
+- **`Remotes.SimulateDashBump` (`RemoteEvent`)**: `Client -> Server`: Debug simulation trigger for `BumpVictim(nil, player)`.
