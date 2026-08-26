@@ -122,3 +122,4 @@ stateDiagram-v2
 | `BankCoins` | `RemoteEvent` | Client $\rightarrow$ Server | Fired when player steps on Bank Pad. Server calculates multiplier & saves to DataStore. |
 | `UpdateHUD` | `RemoteEvent` | Server $\rightarrow$ Client | Sent to client to update wallet counter, stack height meter, and UI bounce animations. |
 | `PlayVFX` | `RemoteEvent` | Server $\rightarrow$ Client | Replicates sound pitch effects, particle sparkles, and camera shake to nearby clients. |
+| `PlaySound` | `RemoteEvent` | Server $\rightarrow$ Client | Broadcasts 2D UI or 3D spatial sound triggers to target clients or all clients. |

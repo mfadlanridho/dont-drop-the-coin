@@ -32,6 +32,7 @@ local REMOTE_NAMES = {
 	"TriggerRagdoll",
 	"UpdateHUD",
 	"PlayVFX",
+	"PlaySound",
 }
 
 -- Initialize Remote Events
