@@ -10,7 +10,7 @@ This document specifies the OOP StateMachine architecture, MovementMotor integra
 3. Integrate **`MovementMotor.luau`** (`src/shared/Utils/MovementMotor.luau`) for unified, leak-proof creation, steering capture (`AutoRotate`), and destruction of `LinearVelocity` physics constraints.
 4. Integrate **`AnimationControllerV2`** (`src/client/Animation/`) for client-side preloading, sequence playback, and skill animation management (`Config.DASH_ANIMATION_ID`).
 5. Program the **Dash Bump** ability (`E` key / Mobile touch button) using **`Workspace:Spherecast`** (4.5-stud 3D swept sphere along 15-stud forward path), smooth **parabolic velocity curve** ($6 \cdot t \cdot (1 - t)$ acceleration $\rightarrow$ deceleration), and `motor:destroy()` lifecycle cleanup.
-6. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, dynamic `BallSocketConstraint` + `NoCollisionConstraint` physical limb sockets, `Enum.HumanoidStateType.Physics`).
+6. Program a **2.5-Second Physics Ragdoll** state (`Humanoid.PlatformStand = true`, `Humanoid.EvaluateStateMachine = false`, dynamic `BallSocketConstraint` + `NoCollisionConstraint` physical limb sockets, `Enum.HumanoidStateType.Physics`, and local-to-world 3D pitch/roll tumbling torque).
 7. Render 3D object-pooled debug gizmos (`DashBumpGizmoController.luau`) in Studio for trajectory lines, swept wire spheres, red impact hit markers, and golden hit labels.
 8. Integrate **Category-Scoped Logger System** (`Logger.luau`) across `Input`, `Combat`, `FSM`, and `Ragdoll` modules.
 9. Provide interactive **Developer Debug GUI** controls (`Combat Debug` panel) for live in-game testing of knockback, ragdoll, and full combat API simulations.
@@ -40,7 +40,8 @@ stateDiagram-v2
     state RagdollState {
         [*] --> CreateBallSocketJoints
         CreateBallSocketJoints --> EnableNoCollisionConstraints
-        EnableNoCollisionConstraints --> LaunchImpulse: Apply Stack-Scaled Knockback
+        EnableNoCollisionConstraints --> ApplyLocalWorldTumbleTorque
+        ApplyLocalWorldTumbleTorque --> LaunchImpulse: Apply Stack-Scaled Knockback
         LaunchImpulse --> ScatterLootCoins: Detach & Explode Stack (360° Arc)
         ScatterLootCoins --> Recovering: Wait 2.5 Seconds
     }
@@ -91,3 +92,21 @@ stateDiagram-v2
 - **`Remotes.DashBumpHit` (`RemoteEvent`)**: `Server -> Client`: `DashBumpHit:FireAllClients(attacker, victimName, hitPos, force)`
 - **`Remotes.TriggerRagdoll` (`RemoteEvent`)**: `Server -> Client`: `TriggerRagdoll:FireClient(victimPlayer, duration, launchVector)`
 - **`Remotes.SimulateDashBump` (`RemoteEvent`)**: `Client -> Server`: Debug simulation trigger for `BumpVictim(nil, player)`.
+
+---
+
+## 🛠️ POLISH & FUTURE BACKLOG
+
+The following items are identified for future combat & physics polish passes:
+
+1. **Residual Knockback Force Dampening:**
+   * *Issue:* Residual velocity forces occasionally apply a secondary push to ragdolled characters after the initial knockback launch.
+   * *Target Fix:* Implement frame-delayed velocity dampening (`AssemblyLinearVelocity` damping / clamping) on the second physics tick following impact.
+
+2. **Ragdoll Recovery Duration Tuning:**
+   * *Issue:* The current 2.5-second ragdoll duration feels slightly long during fast-paced arena movement.
+   * *Target Fix:* Tune `Config.RAGDOLL_DURATION` down to 1.5s - 2.0s or introduce stack-scaled recovery timing (higher stacks = longer recovery).
+
+3. **Get-Up Recovery Animation & Blending:**
+   * *Issue:* Transitioning from ragdoll back to standing uses standard Roblox `GettingUp` state logic.
+   * *Target Fix:* Integrate custom "Get-Up" recovery animation tracks via `AnimationControllerV2` with smooth crossfading into `NormalState`.
