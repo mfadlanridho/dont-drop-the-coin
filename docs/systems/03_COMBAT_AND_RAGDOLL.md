@@ -104,6 +104,22 @@ stateDiagram-v2
 
 ## 🛠️ POLISH & FUTURE BACKLOG
 
-1. **Residual Knockback Force Dampening:** Frame-delayed velocity dampening on second physics tick following impact.
-2. **Ragdoll Recovery Duration Tuning:** Tune `Config.RAGDOLL_DURATION` down to 1.5s - 2.0s or scale recovery timing based on coin stack count.
-3. **Get-Up Recovery Animation & Blending:** Integrate custom "Get-Up" recovery animation tracks via `AnimationControllerV2` with smooth crossfading into `NormalState`.
+The following items are documented for post-MVP combat & physics polish passes:
+
+1. **Delta Movement Sweep Algorithm (`CombatServer.luau`):**
+   * *Target:* Replace fixed forward spherecast sweeps with an incremental `deltaVector = currentPos - lastPos` sweep on `RunService.Heartbeat`. Eliminates phantom forward reach into un-traversed space and guarantees exact physical path coverage.
+
+2. **`SPHERECAST_RADIUS` Body-Width Tuning (`Config.luau`):**
+   * *Target:* Tune `SPHERECAST_RADIUS` from 4.5 studs down to 2.0–2.5 studs to match character shoulder width, ensuring opponents standing 6+ studs away from a short lunge are not struck.
+
+3. **Client-Targeted Ping Reconciliation:**
+   * *Target:* Enhance client target validation payload (`findTargetVictimOnClient()`) to reconcile 100ms–150ms mobile ping delays with server distance validation.
+
+4. **Residual Knockback Force Dampening:**
+   * *Target:* Frame-delayed velocity dampening on second physics tick following impact.
+
+5. **Ragdoll Recovery Duration Tuning:**
+   * *Target:* Tune `Config.RAGDOLL_DURATION` down to 1.5s - 2.0s or scale recovery timing based on coin stack count.
+
+6. **Get-Up Recovery Animation & Blending:**
+   * *Target:* Integrate custom "Get-Up" recovery animation tracks via `AnimationControllerV2` with smooth crossfading into `NormalState`.
