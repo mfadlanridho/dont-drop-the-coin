@@ -24,6 +24,9 @@ local StackServer = require(Services:WaitForChild("StackServer"))
 
 local BankServer = {}
 
+-- Touch counter cache to prevent flickering TouchEnded log/FSM spam during walking animations
+local PadTouches: { [BasePart]: { [Player]: number } } = {}
+
 -- Validate Roblox Group Membership for Group Loyalty Vaults
 local function checkGroupMembership(player: Player): boolean
 	if not Config.GROUP_ID or Config.GROUP_ID == 0 then
@@ -96,7 +99,7 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 	local vaultName = vaultPad and vaultPad.Name or "DefaultVault"
 
 	if stackCount <= 0 then
-		log(string.format("Player %s touched vault %s, but head stack count is 0. (No coins to cash out)", player.Name, vaultName))
+		log(string.format("Player %s touched %s, but stack is 0.", player.Name, vaultName))
 		return false
 	end
 
@@ -137,10 +140,12 @@ function BankServer.BankStack(player: Player): boolean
 	return BankServer.BankStackAtVault(player, nil)
 end
 
--- Bind a Vault Pad with Touch Listeners
+-- Bind a Vault Pad with Touch Listeners & Debounce Counter
 local function bindVaultPad(pad: BasePart)
 	if pad:GetAttribute("_vault_bound") then return end
 	pad:SetAttribute("_vault_bound", true)
+
+	PadTouches[pad] = {}
 
 	pad.Touched:Connect(function(hit)
 		local character = hit.Parent
@@ -148,24 +153,25 @@ local function bindVaultPad(pad: BasePart)
 		local player = Players:GetPlayerFromCharacter(character)
 		if not player then return end
 
-		log(string.format("Touch detected on %s by %s (Part: %s)", pad.Name, player.Name, hit.Name))
-
 		-- Check Group Membership for Group Member Vault
 		if pad.Name == "GroupMemberVault" or pad:GetAttribute("RequireGroup") == true then
 			if not checkGroupMembership(player) then
-				log(string.format("Player %s blocked from touching %s (Not in Group)", player.Name, pad.Name))
 				return
 			end
 		end
 
-		-- Set Safe Zone FSM State while standing inside Lobby / Zone Vaults
-		if PlayerFSM.GetState(player) == "Normal" then
-			PlayerFSM.SetState(player, "SafeZone")
-			log(string.format("Player %s entered SafeZone on %s", player.Name, pad.Name))
-		end
+		local touchMap = PadTouches[pad]
+		local prevCount = touchMap[player] or 0
+		touchMap[player] = prevCount + 1
 
-		-- Attempt cashout at this specific vault
-		BankServer.BankStackAtVault(player, pad)
+		-- FSM State transition & cashout ONLY on initial entry (prevCount == 0)
+		if prevCount == 0 then
+			if PlayerFSM.GetState(player) == "Normal" then
+				PlayerFSM.SetState(player, "SafeZone")
+				log(string.format("Player %s entered SafeZone on %s", player.Name, pad.Name))
+			end
+			BankServer.BankStackAtVault(player, pad)
+		end
 	end)
 
 	pad.TouchEnded:Connect(function(hit)
@@ -174,10 +180,22 @@ local function bindVaultPad(pad: BasePart)
 		local player = Players:GetPlayerFromCharacter(character)
 		if not player then return end
 
-		-- Reset FSM state back to Normal when leaving Vault Pad
-		if PlayerFSM.GetState(player) == "SafeZone" then
-			PlayerFSM.SetState(player, "Normal")
-			log(string.format("Player %s exited SafeZone on %s", player.Name, pad.Name))
+		local touchMap = PadTouches[pad]
+		if not touchMap then return end
+
+		local currentCount = touchMap[player] or 0
+		if currentCount > 0 then
+			currentCount -= 1
+			touchMap[player] = currentCount
+		end
+
+		-- Reset FSM state back to Normal ONLY on final exit (currentCount == 0)
+		if currentCount <= 0 then
+			touchMap[player] = nil
+			if PlayerFSM.GetState(player) == "SafeZone" then
+				PlayerFSM.SetState(player, "Normal")
+				log(string.format("Player %s exited SafeZone on %s", player.Name, pad.Name))
+			end
 		end
 	end)
 
@@ -239,7 +257,7 @@ function BankServer.Init()
 		end)
 	end
 
-	log("BankServer initialized successfully with category-scoped Bank Logger.")
+	log("BankServer initialized successfully with debounced touch handling.")
 end
 
 return BankServer
