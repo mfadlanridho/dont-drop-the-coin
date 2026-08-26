@@ -1,3 +1,10 @@
+--!nonstrict
+--[[
+    GizmoRenderer.luau
+    Object-pooled 3D debug gizmo renderer supporting Lines, Markers, WireSpheres, WireBoxes, and PointLabels.
+    Location: src/client/Debug/GizmoRenderer.luau (Syncs to StarterPlayerScripts.Client.Debug.GizmoRenderer)
+--]]
+
 local Workspace = game:GetService("Workspace")
 
 local GizmoRenderer = {}
@@ -88,6 +95,25 @@ function GizmoRenderer:getWireSphere(name: string, color: Color3, radius: number
 	self:setWireSphere(sphere :: SphereHandleAdornment, Vector3.zero, radius or self.markerSize, color)
 
 	return sphere :: SphereHandleAdornment
+end
+
+function GizmoRenderer:getWireBox(name: string, color: Color3, size: Vector3?): BoxHandleAdornment
+	local box = self.folder:FindFirstChild(name)
+	if box ~= nil and not box:IsA("BoxHandleAdornment") then
+		box:Destroy()
+		box = nil
+	end
+
+	if box == nil then
+		box = Instance.new("BoxHandleAdornment")
+		box.Name = name
+		box.Adornee = Workspace.Terrain
+		box.AlwaysOnTop = false
+		box.Parent = self.folder
+	end
+
+	self:setWireBox(box :: BoxHandleAdornment, CFrame.identity, size or Vector3.new(4.5, 6.0, 4.5), color)
+	return box :: BoxHandleAdornment
 end
 
 function GizmoRenderer:getPointLabel(name: string, text: string, color: Color3): BasePart
@@ -181,6 +207,16 @@ function GizmoRenderer:setWireSphere(sphere: SphereHandleAdornment, position: Ve
 	end
 end
 
+function GizmoRenderer:setWireBox(box: BoxHandleAdornment, cf: CFrame, size: Vector3, color: Color3?)
+	box.CFrame = cf
+	box.Size = size
+	box.Transparency = 0.4
+
+	if color ~= nil then
+		box.Color3 = color
+	end
+end
+
 function GizmoRenderer:setPointLabel(anchor: BasePart, position: Vector3, text: string, color: Color3?)
 	anchor.CFrame = CFrame.new(position)
 	anchor.Transparency = 1
@@ -216,6 +252,10 @@ function GizmoRenderer:hideWireSphere(sphere: SphereHandleAdornment)
 	sphere.Transparency = 1
 end
 
+function GizmoRenderer:hideWireBox(box: BoxHandleAdornment)
+	box.Transparency = 1
+end
+
 function GizmoRenderer:hidePointLabel(anchor: BasePart)
 	anchor.Transparency = 1
 	local billboard = anchor:FindFirstChild("Billboard")
@@ -228,6 +268,11 @@ function GizmoRenderer:hideAll()
 	for _, instance in ipairs(self.folder:GetChildren()) do
 		if instance:IsA("SphereHandleAdornment") then
 			self:hideWireSphere(instance)
+			continue
+		end
+
+		if instance:IsA("BoxHandleAdornment") then
+			self:hideWireBox(instance)
 			continue
 		end
 

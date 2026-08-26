@@ -1,12 +1,13 @@
 --!nonstrict
 --[[
     CombatServer.luau
-    Handles server-side Dash Bump cooldowns, Workspace:Spherecast 3D swept hitboxes, stack-scaled knockback impulse, and ragdoll explosion triggers.
+    Handles server-side Dash Bump cooldowns, Workspace:Spherecast 3D swept hitboxes, stack-scaled knockback impulse, and ragdoll explosion triggers for players & dummies.
     Location: src/server/Services/CombatServer.luau (Syncs to ServerScriptService.Server.Services.CombatServer)
 --]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -21,50 +22,128 @@ local log = Logger.create("Combat")
 local Services = script.Parent
 local StackServer = require(Services:WaitForChild("StackServer"))
 local LootExplosion = require(Services:WaitForChild("LootExplosion"))
+local HitboxService = require(Services:WaitForChild("HitboxService"))
 
 local LastBumpTime: { [number]: number } = {}
 local CombatServer = {}
 
--- Execute Full Combat Bump API on a Victim
-function CombatServer.BumpVictim(attackerPlayer: Player?, victim: Player)
-	if not PlayerFSM.CanBeBumped(victim) then
-		log(string.format("Victim %s cannot be bumped (FSMState: %s)", victim.Name, PlayerFSM.GetState(victim)))
-		return
-	end
-	local victimChar = victim.Character
-	local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
+-- Create a Test Target Dummy in front of a Player for 1-Player Solo Testing
+function CombatServer.SpawnTestDummy(spawnerPlayer: Player): Model?
+	local char = spawnerPlayer.Character
+	if not char then return nil end
+	local hrp = char:FindFirstChild("HumanoidRootPart") :: Part
+	if not hrp then return nil end
+
+	-- Clean up existing dummy if present
+	local oldDummy = Workspace:FindFirstChild("TestTargetDummy")
+	if oldDummy then oldDummy:Destroy() end
+
+	local dummy = Instance.new("Model")
+	dummy.Name = "TestTargetDummy"
+
+	local dummyHrp = Instance.new("Part")
+	dummyHrp.Name = "HumanoidRootPart"
+	dummyHrp.Size = Vector3.new(2, 2, 1)
+	dummyHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -8) -- 8 studs directly in front of player
+	dummyHrp.Anchored = false
+	dummyHrp.CanCollide = true
+	dummyHrp.Parent = dummy
+
+	local dummyTorso = Instance.new("Part")
+	dummyTorso.Name = "UpperTorso"
+	dummyTorso.Size = Vector3.new(2, 2.5, 1)
+	dummyTorso.Color = Color3.fromRGB(255, 120, 0) -- Orange Test Target
+	dummyTorso.Material = Enum.Material.SmoothPlastic
+	dummyTorso.CFrame = dummyHrp.CFrame * CFrame.new(0, 1.25, 0)
+	dummyTorso.Anchored = false
+	dummyTorso.CanCollide = true
+	dummyTorso.Parent = dummy
+
+	local dummyHead = Instance.new("Part")
+	dummyHead.Name = "Head"
+	dummyHead.Size = Vector3.new(1.2, 1.2, 1.2)
+	dummyHead.Color = Color3.fromRGB(255, 220, 100)
+	dummyHead.CFrame = dummyTorso.CFrame * CFrame.new(0, 1.8, 0)
+	dummyHead.Anchored = false
+	dummyHead.CanCollide = true
+	dummyHead.Parent = dummy
+
+	local humanoid = Instance.new("Humanoid")
+	humanoid.Name = "Humanoid"
+	humanoid.Parent = dummy
+
+	-- Welds
+	local w1 = Instance.new("WeldConstraint")
+	w1.Part0 = dummyHrp
+	w1.Part1 = dummyTorso
+	w1.Parent = dummyTorso
+
+	local w2 = Instance.new("WeldConstraint")
+	w2.Part0 = dummyTorso
+	w2.Part1 = dummyHead
+	w2.Parent = dummyHead
+
+	dummy.PrimaryPart = dummyHrp
+	dummy.Parent = Workspace
+
+	-- Attach full-body HitboxCapsule
+	HitboxService.CreateHitbox(dummy)
+
+	log(string.format("Spawned 3D TestTargetDummy 8 studs in front of %s for solo testing!", spawnerPlayer.Name))
+	return dummy
+end
+
+-- Execute Full Combat Bump API on a Victim (Player or Dummy Model)
+function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Model)
+	local victimHrp = victimModel:FindFirstChild("HumanoidRootPart") :: Part
 	if not victimHrp then return end
 
 	local attackerChar = attackerPlayer and attackerPlayer.Character
 	local attackerHrp = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart") :: Part
 	local launchDir = if attackerHrp then (victimHrp.Position - attackerHrp.Position).Unit else -victimHrp.CFrame.LookVector
 
-	-- Calculate Stack-Scaled Knockback Force
-	local victimStack = StackServer.GetStackCount(victim)
-	local knockbackForce = Config.BUMP_BASE_IMPULSE + (victimStack * Config.BUMP_STACK_IMPULSE_MULTIPLIER)
+	local knockbackForce = Config.BUMP_BASE_IMPULSE + 10
 	local launchVector = launchDir * knockbackForce + Vector3.new(0, 35, 0)
 
-	-- Trigger Physics Ragdoll State & Explode Head Stack
-	RagdollModule.TriggerRagdoll(victim, Config.RAGDOLL_DURATION)
-	LootExplosion.ScatterCoins(victim)
+	-- Check if victim is a Player or an NPC Dummy Model
+	local victimPlayer = Players:GetPlayerFromCharacter(victimModel)
 
-	-- Fire client ragdoll & knockback launch event to victim
-	local ragdollRemote = Remotes.Get("TriggerRagdoll")
-	if ragdollRemote then
-		ragdollRemote:FireClient(victim, Config.RAGDOLL_DURATION, launchVector)
+	if victimPlayer then
+		if not PlayerFSM.CanBeBumped(victimPlayer) then return end
+		RagdollModule.TriggerRagdoll(victimPlayer, Config.RAGDOLL_DURATION)
+		LootExplosion.ScatterCoins(victimPlayer)
+
+		local ragdollRemote = Remotes.Get("TriggerRagdoll")
+		if ragdollRemote then
+			ragdollRemote:FireClient(victimPlayer, Config.RAGDOLL_DURATION, launchVector)
+		end
+	else
+		-- Direct physics launch for NPC Test Target Dummy
+		victimHrp.AssemblyLinearVelocity = launchVector
+		local torso = victimModel:FindFirstChild("UpperTorso") :: Part
+		if torso then
+			torso.AssemblyLinearVelocity = launchVector + Vector3.new(math.random(-10, 10), 10, math.random(-10, 10))
+		end
 	end
 
-	-- Fire client hit visualizer event
+	-- Fire client hit visualizer event to all clients
 	local hitEvent = Remotes.Get("DashBumpHit")
 	if hitEvent then
-		hitEvent:FireAllClients(attackerPlayer or victim, victim.Name, victimHrp.Position, knockbackForce)
+		hitEvent:FireAllClients(attackerPlayer or victimPlayer, victimModel.Name, victimHrp.Position, knockbackForce)
 	end
 
-	log(string.format("%s BUMPED %s! (Launch Force: %.1f, Stack: %d)", attackerPlayer and attackerPlayer.Name or "System", victim.Name, knockbackForce, victimStack))
+	log(string.format("%s BUMPED %s! (Launch Force: %.1f)", attackerPlayer and attackerPlayer.Name or "System", victimModel.Name, knockbackForce))
+end
+
+-- Execute Full Combat Bump API on a Victim Player
+function CombatServer.BumpVictim(attackerPlayer: Player?, victim: Player)
+	if victim and victim.Character then
+		CombatServer.BumpVictimModel(attackerPlayer, victim.Character)
+	end
 end
 
 -- Handle Client Dash Bump Request
-local function handleDashBump(player: Player)
+local function handleDashBump(player: Player, clientTargetVictim: Player?)
 	log(string.format("handleDashBump received from player %s", player.Name))
 	local userId = player.UserId
 	local now = os.clock()
@@ -96,63 +175,80 @@ local function handleDashBump(player: Player)
 	LastBumpTime[userId] = now
 	PlayerFSM.SetState(player, "Dashing")
 
-	-- 1. Primary 3D Spherecast Sweep along 15-stud forward dash path
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = { character }
-	raycastParams.IgnoreWater = true
+	-- If client reported a direct target hit validation, verify distance and bump immediately
+	if clientTargetVictim and clientTargetVictim:IsA("Player") and clientTargetVictim ~= player then
+		local victimChar = clientTargetVictim.Character
+		local victimHrp = victimChar and victimChar:FindFirstChild("HumanoidRootPart") :: Part
+		if victimHrp and (victimHrp.Position - hrp.Position).Magnitude <= (Config.DASH_DISTANCE + 6) then
+			CombatServer.BumpVictim(player, clientTargetVictim)
+		end
+	end
 
+	-- Continuous 0.3s Heartbeat Hitbox Loop (runs every frame as the character lunges forward)
+	local startTime = os.clock()
+	local duration = Config.DASH_DURATION
 	local sphereRadius = 4.5
-	local dashDirection = hrp.CFrame.LookVector * Config.DASH_DISTANCE
-
 	local processedVictims = {}
 
-	local spherecastResult = Workspace:Spherecast(
-		hrp.Position,
-		sphereRadius,
-		dashDirection,
-		raycastParams
-	)
-
-	if spherecastResult and spherecastResult.Instance then
-		local victimChar = spherecastResult.Instance.Parent
-		if victimChar and victimChar:FindFirstChildOfClass("Humanoid") == nil and victimChar.Parent then
-			victimChar = victimChar.Parent
+	local dashConnection: RBXScriptConnection?
+	dashConnection = RunService.Heartbeat:Connect(function()
+		local elapsed = os.clock() - startTime
+		if elapsed >= duration or not character or not character.Parent or not hrp or not hrp.Parent then
+			if dashConnection then
+				dashConnection:Disconnect()
+				dashConnection = nil
+			end
+			if PlayerFSM.GetState(player) == "Dashing" then
+				PlayerFSM.SetState(player, "Normal")
+			end
+			return
 		end
 
-		local victim = Players:GetPlayerFromCharacter(victimChar)
-		if victim and victim ~= player then
-			processedVictims[victim] = true
+		local targetHitboxes = HitboxService.GetTargetHitboxes(player)
+		if #targetHitboxes == 0 then return end
+
+		-- 1. Spherecast along current movement vector
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Include
+		raycastParams.FilterDescendantsInstances = targetHitboxes
+		raycastParams.IgnoreWater = true
+
+		local spherecastResult = Workspace:Spherecast(
+			hrp.Position,
+			sphereRadius,
+			hrp.CFrame.LookVector * 4.0,
+			raycastParams
+		)
+
+		if spherecastResult and spherecastResult.Instance then
+			local vChar = spherecastResult.Instance.Parent
+			if vChar and vChar:FindFirstChildOfClass("Humanoid") == nil and vChar.Parent then
+				vChar = vChar.Parent
+			end
+			if vChar and vChar:IsA("Model") and not processedVictims[vChar] then
+				processedVictims[vChar] = true
+				CombatServer.BumpVictimModel(player, vChar)
+			end
 		end
-	end
 
-	-- 2. Secondary Overlap Volume check along dash corridor to guarantee multi-victim detection
-	local overlapParams = OverlapParams.new()
-	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-	overlapParams.FilterDescendantsInstances = { character }
+		-- 2. Box Overlap check centered at current position
+		local overlapParams = OverlapParams.new()
+		overlapParams.FilterType = Enum.RaycastFilterType.Include
+		overlapParams.FilterDescendantsInstances = targetHitboxes
 
-	local corridorCenter = hrp.CFrame * CFrame.new(0, 0, -Config.DASH_DISTANCE * 0.5)
-	local corridorSize = Vector3.new(sphereRadius * 2, 7, Config.DASH_DISTANCE + 4)
-	local corridorParts = Workspace:GetPartBoundsInBox(corridorCenter, corridorSize, overlapParams)
+		local currentBoxCenter = hrp.CFrame * CFrame.new(0, 0, -2)
+		local currentBoxSize = Vector3.new(sphereRadius * 2, 7, 6)
+		local corridorParts = Workspace:GetPartBoundsInBox(currentBoxCenter, currentBoxSize, overlapParams)
 
-	for _, part in ipairs(corridorParts) do
-		local victimChar = part.Parent
-		local victim = Players:GetPlayerFromCharacter(victimChar)
-		if victim and victim ~= player then
-			processedVictims[victim] = true
-		end
-	end
-
-	-- Process all detected victims using full Combat API
-	for victim, _ in pairs(processedVictims) do
-		CombatServer.BumpVictim(player, victim)
-	end
-
-	-- Reset FSM State after dash duration
-	task.delay(Config.DASH_DURATION, function()
-		if PlayerFSM.GetState(player) == "Dashing" then
-			log(string.format("Resetting FSMState for %s back to Normal after %.1fs", player.Name, Config.DASH_DURATION))
-			PlayerFSM.SetState(player, "Normal")
+		for _, part in ipairs(corridorParts) do
+			local vChar = part.Parent
+			if vChar and vChar:FindFirstChildOfClass("Humanoid") == nil and vChar.Parent then
+				vChar = vChar.Parent
+			end
+			if vChar and vChar:IsA("Model") and not processedVictims[vChar] then
+				processedVictims[vChar] = true
+				CombatServer.BumpVictimModel(player, vChar)
+			end
 		end
 	end)
 end
@@ -170,6 +266,13 @@ function CombatServer.Init()
 		simBumpEvent.OnServerEvent:Connect(function(player)
 			log(string.format("SimulateDashBump remote event received for player %s", player.Name))
 			CombatServer.BumpVictim(nil, player)
+		end)
+	end
+
+	local spawnDummyEvent = Remotes.Get("SpawnTestDummy")
+	if spawnDummyEvent then
+		spawnDummyEvent.OnServerEvent:Connect(function(player)
+			CombatServer.SpawnTestDummy(player)
 		end)
 	end
 

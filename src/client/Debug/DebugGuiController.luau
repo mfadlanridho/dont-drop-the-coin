@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local DebugGuiView = require(script.Parent:WaitForChild("DebugGuiView"))
+local DebugConfig = require(script.Parent:WaitForChild("DebugConfig"))
 
 local DebugGuiController = {}
 
@@ -214,6 +215,28 @@ function DebugGuiController.start()
 		renderAccumulator = 0
 		renderNow()
 	end)
+
+	-- Register Combat Debug Toggles & Buttons
+	DebugGuiController.setToggleRow("combat", "always_show_hitboxes", "Always Show Hitboxes", DebugConfig.DashBump and DebugConfig.DashBump.AlwaysShowHitboxes or false, function(newValue)
+		if DebugConfig.DashBump then
+			DebugConfig.DashBump.AlwaysShowHitboxes = newValue
+		end
+	end, "Combat Debug", 2)
+
+	DebugGuiController.setToggleRow("combat", "show_dash_gizmos", "Show Dash Sweep Gizmos", DebugConfig.DashBump and DebugConfig.DashBump.ShowGizmos or true, function(newValue)
+		if DebugConfig.DashBump then
+			DebugConfig.DashBump.ShowGizmos = newValue
+		end
+	end, "Combat Debug", 2)
+
+	DebugGuiController.setButtonRow("combat", "spawn_dummy", "Spawn Target Dummy (1-Player Test)", "SPAWN TEST DUMMY", function()
+		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+		local Remotes = require(Shared:WaitForChild("Remotes"))
+		local spawnRemote = Remotes.Get("SpawnTestDummy")
+		if spawnRemote then
+			spawnRemote:FireServer()
+		end
+	end, "Combat Debug", 2)
 
 	DebugGuiController.setButtonRow("combat", "simulate_dash_self", "Simulate Incoming Dash (Full API)", "TRIGGER DASH BUMP HIT", function()
 		local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")

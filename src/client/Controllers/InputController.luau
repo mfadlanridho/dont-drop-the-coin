@@ -23,6 +23,37 @@ local localPlayer = Players.LocalPlayer
 
 local InputController = {}
 
+-- Find closest opponent player within 15-stud forward dash path on client
+local function findTargetVictimOnClient(): Player?
+	local char = localPlayer.Character
+	if not char then return nil end
+	local hrp = char:FindFirstChild("HumanoidRootPart") :: Part
+	if not hrp then return nil end
+
+	local origin = hrp.Position
+	local lookDir = hrp.CFrame.LookVector
+	local closestVictim: Player? = nil
+	local minDistance = Config.DASH_DISTANCE + 4.5
+
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+		if otherPlayer ~= localPlayer and otherPlayer.Character then
+			local victimHrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart") :: Part
+			if victimHrp then
+				local toVictim = victimHrp.Position - origin
+				local forwardDist = toVictim:Dot(lookDir)
+				local lateralDist = (toVictim - (lookDir * forwardDist)).Magnitude
+
+				if forwardDist > 0 and forwardDist <= minDistance and lateralDist <= 5.5 then
+					closestVictim = otherPlayer
+					minDistance = forwardDist
+				end
+			end
+		end
+	end
+
+	return closestVictim
+end
+
 -- Cast Dash Bump Ability
 local function triggerDashBump()
 	local now = os.clock()
@@ -44,11 +75,17 @@ local function triggerDashBump()
 
 	lastCastTime = now
 
+	-- Perform instant local target validation check
+	local targetVictim = findTargetVictimOnClient()
+	if targetVictim then
+		debugLog(string.format("Client detected target victim: %s", targetVictim.Name))
+	end
+
 	-- Fire Server Remote
 	local bumpEvent = Remotes.Get("DashBump")
 	if bumpEvent then
 		debugLog("Firing DashBump remote event to Server...")
-		bumpEvent:FireServer()
+		bumpEvent:FireServer(targetVictim)
 	else
 		warn("[InputController] ERROR: DashBump RemoteEvent not found!")
 	end

@@ -1,14 +1,15 @@
 --!nonstrict
 --[[
     DashBumpGizmoController.luau
-    Renders object-pooled 3D debug gizmos (Spherecast volume, trajectory line, and hit labels) for Dash Bump skills.
-    Updates line color, sphere position, and label text when a player hit occurs.
+    Renders object-pooled 3D debug gizmos (Spherecast volume, HitboxCapsule wireframe box, trajectory line, and hit labels) for Dash Bump skills.
+    Supports continuous real-time rendering of HitboxCapsule 3D wireframe boxes when AlwaysShowHitboxes is enabled.
     Location: src/client/Controllers/DashBumpGizmoController.luau
 --]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -20,6 +21,7 @@ local GizmoRenderer = require(DebugFolder:WaitForChild("GizmoRenderer"))
 
 local LocalPlayer = Players.LocalPlayer
 local renderer: any
+local persistentRenderer: any
 
 local DashBumpGizmoController = {}
 
@@ -32,6 +34,15 @@ local function getRenderer()
 		})
 	end
 	return renderer
+end
+
+local function getPersistentRenderer()
+	if not persistentRenderer then
+		persistentRenderer = GizmoRenderer.new("PersistentHitboxDebug", {
+			lineThickness = 0.2,
+		})
+	end
+	return persistentRenderer
 end
 
 -- Draw 3D Gizmo Visualization for Dash Bump Sweep (No Hit)
@@ -57,7 +68,18 @@ function DashBumpGizmoController.DrawDashGizmo(attackerChar: Model)
 	local wireSphere = r:getWireSphere("DashSpherecastVolume", Color3.fromRGB(255, 50, 200), sphereRadius)
 	r:setWireSphere(wireSphere, target, sphereRadius, Color3.fromRGB(255, 50, 200))
 
-	-- 3. Point Label (Yellow)
+	-- 3. Draw Green Wireframe Bounding Box around target HitboxCapsules of other players
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+		if otherPlayer ~= LocalPlayer and otherPlayer.Character then
+			local hitbox = otherPlayer.Character:FindFirstChild("HitboxCapsule") :: Part
+			if hitbox then
+				local wireBox = r:getWireBox("HitboxGizmo_" .. otherPlayer.Name, Color3.fromRGB(0, 255, 120), hitbox.Size)
+				r:setWireBox(wireBox, hitbox.CFrame, hitbox.Size, Color3.fromRGB(0, 255, 120))
+			end
+		end
+	end
+
+	-- 4. Point Label (Yellow)
 	local labelAnchor = r:getPointLabel("DashLabel", "DASH BUMP SWEEP (15 Studs)", Color3.fromRGB(255, 220, 0))
 	r:setPointLabel(labelAnchor, target + Vector3.new(0, 2.5, 0), "DASH BUMP SWEEP (15 Studs)", Color3.fromRGB(255, 220, 0))
 
@@ -94,7 +116,17 @@ function DashBumpGizmoController.DrawHitGizmo(attackerChar: Model, victimName: s
 	local hitMarker = r:getMarker("DashHitMarker", Color3.fromRGB(255, 30, 30))
 	r:setMarker(hitMarker, hitPosition, Color3.fromRGB(255, 30, 30))
 
-	-- 4. Hit Label (Bright Gold)
+	-- 4. Draw Red Wireframe Box around Victim's HitboxCapsule
+	local victimPlayer = Players:GetPlayerByName(victimName)
+	if victimPlayer and victimPlayer.Character then
+		local hitbox = victimPlayer.Character:FindFirstChild("HitboxCapsule") :: Part
+		if hitbox then
+			local wireBox = r:getWireBox("HitboxGizmo_" .. victimName, Color3.fromRGB(255, 40, 40), hitbox.Size)
+			r:setWireBox(wireBox, hitbox.CFrame, hitbox.Size, Color3.fromRGB(255, 40, 40))
+		end
+	end
+
+	-- 5. Hit Label (Bright Gold)
 	local labelText = string.format("BUMP HIT! (%s, Force: %.0f)", victimName, knockbackForce)
 	local labelAnchor = r:getPointLabel("DashLabel", labelText, Color3.fromRGB(255, 255, 100))
 	r:setPointLabel(labelAnchor, hitPosition + Vector3.new(0, 3.0, 0), labelText, Color3.fromRGB(255, 255, 100))
@@ -128,7 +160,28 @@ function DashBumpGizmoController.Init()
 		end)
 	end
 
-	print("[DashBumpGizmoController] Debug Gizmo Renderer initialized.")
+	-- Continuous RenderStepped loop for Always-On Hitbox Wireframes
+	RunService.RenderStepped:Connect(function()
+		if not RunService:IsStudio() then return end
+
+		local pr = getPersistentRenderer()
+		if not DebugConfig.DashBump or not DebugConfig.DashBump.AlwaysShowHitboxes then
+			pr:hideAll()
+			return
+		end
+
+		-- Render continuous Green 3D Wireframe Box around all HitboxCapsules in Workspace
+		for _, descendant in ipairs(Workspace:GetDescendants()) do
+			if descendant:IsA("Part") and descendant.Name == "HitboxCapsule" then
+				local model = descendant.Parent
+				local modelName = model and model.Name or "Unknown"
+				local wireBox = pr:getWireBox("AlwaysOnHitbox_" .. descendant:GetDebugId(), Color3.fromRGB(0, 255, 120), descendant.Size)
+				pr:setWireBox(wireBox, descendant.CFrame, descendant.Size, Color3.fromRGB(0, 255, 120))
+			end
+		end
+	end)
+
+	print("[DashBumpGizmoController] Debug Gizmo Renderer initialized with continuous Hitbox visualizer support.")
 end
 
 return DashBumpGizmoController

@@ -1,17 +1,18 @@
 return {
 	Swing = {
-		ShowGizmos = false, -- Set to true to draw swinging trajectory lines
+		ShowGizmos = false,
 	},
 	WallDetection = {
-		ShowGizmos = false, -- Set to true to draw wall detection rays and hit points
+		ShowGizmos = false,
 	},
 	WallRunProjection = {
-		ShowGizmos = false, -- Set to true to draw wall run motion vector projections
+		ShowGizmos = false,
 	},
 	MoveDirection = {
-		ShowGizmos = false, -- Set to true to draw character movement direction vectors
+		ShowGizmos = false,
 	},
 	DashBump = {
-		ShowGizmos = true, -- Set to true to draw 3D Spherecast and swept collision volume gizmos
+		ShowGizmos = true,
+		AlwaysShowHitboxes = false, -- Set to true to continuously render 3D wireframe boxes around all HitboxCapsules
 	},
 }
