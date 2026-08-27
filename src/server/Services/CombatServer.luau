@@ -126,10 +126,15 @@ function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Mode
 		end
 	end
 
-	-- Fire client hit visualizer event to all clients
+	-- Fire client hit visualizer & 3D sound event to all clients
 	local hitEvent = Remotes.Get("DashBumpHit")
 	if hitEvent then
 		hitEvent:FireAllClients(attackerPlayer or victimPlayer, victimModel.Name, victimHrp.Position, knockbackForce)
+	end
+
+	local soundRemote = Remotes.Get("PlaySound")
+	if soundRemote then
+		soundRemote:FireAllClients("RagdollHit", victimHrp)
 	end
 
 	log(string.format("%s BUMPED %s! (Launch Force: %.1f)", attackerPlayer and attackerPlayer.Name or "System", victimModel.Name, knockbackForce))
@@ -174,6 +179,12 @@ local function handleDashBump(player: Player, clientTargetVictim: Player?)
 
 	LastBumpTime[userId] = now
 	PlayerFSM.SetState(player, "Dashing")
+
+	-- Fire Dash Bump 3D audio to all clients
+	local soundRemote = Remotes.Get("PlaySound")
+	if soundRemote then
+		soundRemote:FireAllClients("DashBump", hrp)
+	end
 
 	-- If client reported a direct target hit validation, verify distance and bump immediately
 	if clientTargetVictim and clientTargetVictim:IsA("Player") and clientTargetVictim ~= player then

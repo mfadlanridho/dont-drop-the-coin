@@ -29,29 +29,29 @@ SoundConfig.Sounds = {
 		Pitch = 1.0,
 	} :: SoundDefinition,
 	ButtonHover = {
-		Id = "rbxassetid://6895079558",
+		Id = "rbxassetid://139719503904449",
 		Volume = 0.3,
 		Pitch = 1.2,
 	} :: SoundDefinition,
 
 	-- Gameplay Sounds
 	CoinPickup = {
-		Id = "rbxassetid://6895080031",
+		Id = "rbxassetid://135483737426662",
 		Volume = 0.6,
 		Pitch = 1.0,
 	} :: SoundDefinition,
 	DashBump = {
-		Id = "rbxassetid://9114223179",
+		Id = "rbxassetid://9120729973",
 		Volume = 0.8,
 		Pitch = 1.0,
 	} :: SoundDefinition,
 	RagdollHit = {
-		Id = "rbxassetid://9114223405",
+		Id = "rbxassetid://9113525391",
 		Volume = 0.7,
 		Pitch = 1.0,
 	} :: SoundDefinition,
 	BankCoins = {
-		Id = "rbxassetid://6895080275",
+		Id = "rbxassetid://9113581128",
 		Volume = 0.8,
 		Pitch = 1.0,
 	} :: SoundDefinition,
@@ -66,7 +66,7 @@ SoundConfig.DefaultPlaylist = {
 	},
 	{
 		Name = "UpbeatAction",
-		Id = "rbxassetid://1837879440",
+		Id = "rbxassetid://1837768143",
 		Volume = 0.3,
 	},
 }

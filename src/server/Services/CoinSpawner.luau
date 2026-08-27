@@ -46,6 +46,12 @@ local function handlePickup(player: Player, coinNode: Part)
 	local zoneTier = coinNode:GetAttribute("ZoneTier") or 1
 	local newStack = StackServer.AddCoin(player, zoneTier)
 
+	-- Fire Sound Event with Pitch Combo to Client
+	local soundRemote = Remotes.Get("PlaySound")
+	if soundRemote then
+		soundRemote:FireClient(player, "CoinPickupCombo", hrp)
+	end
+
 	print(string.format("[CoinSpawner] %s picked up coin in Zone %d (New Stack: %d)", player.Name, zoneTier, newStack))
 
 	-- Respawn Timer

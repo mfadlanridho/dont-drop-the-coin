@@ -125,10 +125,15 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 	StackServer.ClearStack(player)
 	BankServer.UpdateLeaderstats(player)
 
-	-- Fire client bank visualizer remote event
+	-- Fire client bank visualizer remote event & 2D banking audio
 	local bankRemote = Remotes.Get("BankCoins")
 	if bankRemote then
 		bankRemote:FireClient(player, earnedCash, stackCount, multiplier)
+	end
+
+	local soundRemote = Remotes.Get("PlaySound")
+	if soundRemote then
+		soundRemote:FireClient(player, "BankCoins")
 	end
 
 	log(string.format("SUCCESS: Player %s BANKED %d coins for $%d cash at %s! (Multiplier: %.1fx)", player.Name, stackCount, earnedCash, vaultName, multiplier))
