@@ -13,6 +13,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SoundConfig = require(Shared:WaitForChild("Config"):WaitForChild("SoundConfig") :: ModuleScript)
+local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger") :: ModuleScript)
+
+local log = Logger.create("Audio")
 
 local GameplayAudio = {}
 local activeLoops: { [string]: Sound } = {}
@@ -101,10 +104,16 @@ function GameplayAudio.playOneShot(
 	volumeOverride: number?,
 	pitchOverride: number?
 ): Sound?
-	if soundInput == nil then return nil end
+	if soundInput == nil then
+		log("playOneShot failed: soundInput is nil")
+		return nil
+	end
 
 	local soundId, defaultVol, defaultPitch, category = resolveSoundIdAndVolume(soundInput)
-	if not soundId then return nil end
+	if not soundId then
+		log("playOneShot failed: Could not resolve soundId for input:", tostring(soundInput))
+		return nil
+	end
 
 	if not sfxGroup then
 		GameplayAudio.initSoundGroups()
@@ -119,6 +128,7 @@ function GameplayAudio.playOneShot(
 	sound.Parent = parent or SoundService
 
 	sound:Play()
+	log(string.format("playOneShot played: '%s' | ID: %s | Volume: %.2f | Group: %s | Parent: %s", tostring(soundInput), soundId, sound.Volume, sound.SoundGroup and sound.SoundGroup.Name or "None", sound.Parent and sound.Parent.Name or "None"))
 
 	local duration = sound.TimeLength > 0 and sound.TimeLength + 0.5 or 10
 	Debris:AddItem(sound, duration)

@@ -10,6 +10,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared:WaitForChild("Remotes") :: ModuleScript)
 local GameplayAudio = require(Shared:WaitForChild("Utils"):WaitForChild("GameplayAudio") :: ModuleScript)
+local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger") :: ModuleScript)
+
+local log = Logger.create("Audio")
 
 local PlaySoundRemote = Remotes.Get("PlaySound")
 
@@ -23,6 +26,7 @@ PlaySoundRemote.OnClientEvent:Connect(function(
 	volumeOverride: number?,
 	pitchOverride: number?
 )
+	log("PlaySound remote received on client:", tostring(soundInput), "Parent:", parent and parent:GetFullName() or "nil")
 	if soundInput == "CoinPickupCombo" then
 		GameplayAudio.playPickupCombo(parent)
 	else

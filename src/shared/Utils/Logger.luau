@@ -27,6 +27,8 @@ local Categories: CategoryMap = {
 	DebugGui = IS_STUDIO and true,
 	Shop = IS_STUDIO and true,
 	LootExplosion = IS_STUDIO and true,
+	Audio = IS_STUDIO and true,
+	Bank = IS_STUDIO and true,
 }
 
 local Logger = {}

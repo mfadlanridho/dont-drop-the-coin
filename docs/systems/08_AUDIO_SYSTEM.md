@@ -37,11 +37,11 @@ export type SoundDefinition = {
 
 SoundConfig.Sounds = {
     ButtonClick = { Id = "rbxassetid://6895079853", Volume = 0.5, Pitch = 1.0 },
-    ButtonHover = { Id = "rbxassetid://6895079558", Volume = 0.3, Pitch = 1.2 },
-    CoinPickup  = { Id = "rbxassetid://6895080031", Volume = 0.6, Pitch = 1.0 },
-    DashBump    = { Id = "rbxassetid://9114223179", Volume = 0.8, Pitch = 1.0 },
-    RagdollHit  = { Id = "rbxassetid://9114223405", Volume = 0.7, Pitch = 1.0 },
-    BankCoins   = { Id = "rbxassetid://6895080275", Volume = 0.8, Pitch = 1.0 },
+    ButtonHover = { Id = "rbxassetid://139719503904449", Volume = 0.3, Pitch = 1.2 },
+    CoinPickup  = { Id = "rbxassetid://135483737426662", Volume = 0.6, Pitch = 1.0 },
+    DashBump    = { Id = "rbxassetid://9120729973", Volume = 0.8, Pitch = 1.0 },
+    RagdollHit  = { Id = "rbxassetid://9113525391", Volume = 0.7, Pitch = 1.0 },
+    BankCoins   = { Id = "rbxassetid://9113581128", Volume = 0.8, Pitch = 1.0 },
 }
 ```
 
@@ -49,7 +49,7 @@ SoundConfig.Sounds = {
 ```lua
 SoundConfig.DefaultPlaylist = {
     { Name = "ChillLobby",   Id = "rbxassetid://1837879082", Volume = 0.3 },
-    { Name = "UpbeatAction", Id = "rbxassetid://1837879440", Volume = 0.3 },
+    { Name = "UpbeatAction", Id = "rbxassetid://1837768143", Volume = 0.3 },
 }
 ```
 
@@ -124,8 +124,17 @@ PlaySoundRemote:FireAllClients("BankCoins", bankPadPart, 1.0, 1.0)
 
 ---
 
-## 6. Integration Guide & Best Practices
+## 7. Debugging & Logging (`Logger.luau`)
 
-1. **Adding New Audio Assets**: Register new sound keys in `SoundConfig.Sounds` with appropriate default volumes and optional pitch parameters.
-2. **Positional Spatial Audio**: Always pass the character's `PrimaryPart` or `Head` as the `parent` parameter to `GameplayAudio.playOneShot()` when an audio event occurs in the 3D world.
-3. **UI Feedback**: Call `AudioController.playUI("ButtonClick")` inside `Activated` or `MouseButton1Click` callbacks for UI buttons.
+The audio system integrates with `Logger.luau` under the `Audio` and `Bank` categories:
+
+```lua
+-- Output logs in Studio console:
+[Audio] PlaySound remote received on client: BankCoins Parent: nil
+[Audio] playOneShot played: 'BankCoins' | ID: rbxassetid://9113581128 | Volume: 0.80 | Group: SFX | Parent: SoundService
+[Bank] SUCCESS: Player NotoriousGamedev BANKED 5 coins for $5 cash at DefaultVault! (Multiplier: 1.0x)
+```
+
+Toggle logging in [`src/shared/Utils/Logger.luau`](../../src/shared/Utils/Logger.luau) under `Logger.Categories`:
+- `Audio = IS_STUDIO and true`
+- `Bank = IS_STUDIO and true`
