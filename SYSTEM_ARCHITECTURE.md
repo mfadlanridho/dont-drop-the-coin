@@ -123,3 +123,4 @@ stateDiagram-v2
 | `UpdateHUD` | `RemoteEvent` | Server $\rightarrow$ Client | Sent to client to update wallet counter, stack height meter, and UI bounce animations. |
 | `PlayVFX` | `RemoteEvent` | Server $\rightarrow$ Client | Replicates sound pitch effects, particle sparkles, and camera shake to nearby clients. |
 | `PlaySound` | `RemoteEvent` | Server $\rightarrow$ Client | Broadcasts 2D UI or 3D spatial sound triggers to target clients or all clients. |
+| `SendNotification` | `RemoteEvent` | Server $\rightarrow$ Client | Triggers animated banner announcements or toast popups on client screens. |

@@ -136,6 +136,16 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 		soundRemote:FireClient(player, "BankCoins")
 	end
 
+	local notifRemote = Remotes.Get("SendNotification")
+	if notifRemote then
+		notifRemote:FireClient(player, {
+			Title = "💰 COINS BANKED!",
+			Description = string.format("Banked %d coin(s) for $%d cash at %s!", stackCount, earnedCash, vaultName),
+			Duration = 3.5,
+			Color = Color3.fromRGB(0, 230, 120),
+		})
+	end
+
 	log(string.format("SUCCESS: Player %s BANKED %d coins for $%d cash at %s! (Multiplier: %.1fx)", player.Name, stackCount, earnedCash, vaultName, multiplier))
 	return true
 end
