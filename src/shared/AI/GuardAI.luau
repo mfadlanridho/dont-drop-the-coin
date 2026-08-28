@@ -1,7 +1,8 @@
 --!strict
 --[[
     GuardAI.luau
-    Universal Roblox AI Workspace Guard AI Framework supporting BOTH Humanoid walking NPCs and Non-Humanoid flying drones.
+    Clean, simple 100% Humanoid Guard AI Engine based on Roblox AI Workspace.
+    Strict 0-margin spatial footprint check for instant platform boundary exit.
     Location: src/shared/AI/GuardAI.luau
 --]]
 
@@ -36,44 +37,48 @@ export type GuardAIConfig = {
 export type GuardAIInstance = {
 	model: Model,
 	primaryPart: BasePart,
-	humanoid: Humanoid?,
+	humanoid: Humanoid,
 	context: any,
 	stateMachine: any,
-	isDormant: boolean,
 	isDestroyed: boolean,
 	platformPart: BasePart?,
-	activePlayersOnPlatform: { [Player]: number },
 	heartbeatConn: RBXScriptConnection?,
 	touchConn: RBXScriptConnection?,
 }
 
--- Universal MoveTo Adapter (Handles BOTH Humanoids and Non-Humanoid Drones)
-local function universalMoveToPosition(context: any, targetPos: Vector3)
-	if context.humanoid then
-		-- 1. Humanoid Ground Walking: Native Humanoid:MoveTo()
-		context.humanoid.WalkSpeed = context.moveSpeed or 16
-		context.humanoid:MoveTo(targetPos)
-	else
-		-- 2. Non-Humanoid Flying Drones: Smooth 3D flying motion
-		local primaryPart = context.primaryPart
-		if not primaryPart then return end
-		local currentPos = primaryPart.Position
-		local moveDir = (targetPos - currentPos)
-		if moveDir.Magnitude > 0.1 then
-			local stepPos = currentPos + (moveDir.Unit * math.min(moveDir.Magnitude, (context.moveSpeed or 16) * (context.deltaTime or (1/60))))
-			primaryPart.CFrame = CFrame.new(stepPos, stepPos + moveDir)
-		end
-	end
+-- Strict Spatial Footprint Check: Exact physical bounds of platform floor (0 margin)
+local function isPlayerOnPlatform(player: Player, platform: BasePart?): boolean
+	if not platform then return true end
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not hrp then return false end
+
+	local relPos = platform.CFrame:PointToObjectSpace(hrp.Position)
+	local halfSize = (platform.Size * 0.5) + Vector3.new(0, 15, 0) -- 0 margin X/Z
+	return math.abs(relPos.X) <= halfSize.X 
+	   and math.abs(relPos.Z) <= halfSize.Z 
+	   and relPos.Y >= -4 and relPos.Y <= halfSize.Y
 end
 
 function GuardAI.new(model: Model, config: GuardAIConfig?): GuardAIInstance
 	local self = setmetatable({}, GuardAI) :: any
 	self.model = model
-	self.humanoid = model:FindFirstChildWhichIsA("Humanoid")
+	
+	-- Ensure Humanoid instance exists
+	local humanoid = model:FindFirstChildWhichIsA("Humanoid")
+	if not humanoid then
+		humanoid = Instance.new("Humanoid")
+		humanoid.Name = "Humanoid"
+		humanoid.Parent = model
+	end
+	self.humanoid = humanoid :: Humanoid
+
+	-- Hide Roblox Default Healthbar & Nametag
+	self.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	self.humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+
 	self.primaryPart = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
 	self.isDestroyed = false
-	self.isDormant = false
-	self.activePlayersOnPlatform = {}
 
 	-- Resolve Platform Part
 	local resolvedPlatform: BasePart? = config and config.platformPart
@@ -86,6 +91,18 @@ function GuardAI.new(model: Model, config: GuardAIConfig?): GuardAIInstance
 		end
 	end
 	self.platformPart = resolvedPlatform
+
+	-- Resolve Waypoints Folder if present inside Platform model
+	local waypointsList = {}
+	local parentModel = model.Parent
+	local waypointsFolder = (model:FindFirstChild("Waypoints") or (parentModel and parentModel:FindFirstChild("Waypoints"))) :: Instance?
+	if waypointsFolder then
+		for _, child in ipairs(waypointsFolder:GetChildren()) do
+			if child:IsA("BasePart") then
+				table.insert(waypointsList, child)
+			end
+		end
+	end
 
 	local primaryPart = self.primaryPart
 	local startPos = primaryPart and primaryPart.Position or Vector3.zero
@@ -100,12 +117,14 @@ function GuardAI.new(model: Model, config: GuardAIConfig?): GuardAIInstance
 		attackRadius = config and config.attackRadius or 5.0,
 		attackRecoveryTime = config and config.attackRecoveryTime or 0.5,
 		onAttackHit = config and config.onAttackHit,
-		moveToPosition = universalMoveToPosition,
+		isPlayerOnPlatform = isPlayerOnPlatform,
+		platformPart = resolvedPlatform,
+		waypoints = waypointsList,
+		currentWaypointIndex = 1,
 		currentTargetHrp = nil,
 		lastTargetTime = 0,
-		patrolStartTime = 0,
+		patrolStartTime = os.clock(),
 		isAttacking = false,
-		isDormant = false,
 	}
 
 	self:init()
@@ -114,9 +133,6 @@ end
 
 function GuardAI:init()
 	if not self.primaryPart then return end
-	if not self.humanoid then
-		self.primaryPart.Anchored = true
-	end
 
 	-- Touch listener for direct physical contact
 	self.touchConn = self.primaryPart.Touched:Connect(function(hit)
@@ -129,57 +145,6 @@ function GuardAI:init()
 		end
 	end)
 
-	-- Platform Occupancy Listener
-	if self.platformPart then
-		self.isDormant = true
-		self.context.isDormant = true
-		log(string.format("[GuardAI] %s bound to platform %s (Initialized Dormant)", self.model.Name, self.platformPart.Name))
-
-		local platform = self.platformPart
-		platform.Touched:Connect(function(hit)
-			local character = hit.Parent
-			if not character then return end
-			local player = Players:GetPlayerFromCharacter(character)
-			if not player then return end
-
-			local currentCount = self.activePlayersOnPlatform[player] or 0
-			self.activePlayersOnPlatform[player] = currentCount + 1
-
-			if currentCount == 0 and self.isDormant then
-				self.isDormant = false
-				self.context.isDormant = false
-				log(string.format("[GuardAI] %s WOKE UP! Player %s entered platform %s.", self.model.Name, player.Name, platform.Name))
-			end
-		end)
-
-		platform.TouchEnded:Connect(function(hit)
-			local character = hit.Parent
-			if not character then return end
-			local player = Players:GetPlayerFromCharacter(character)
-			if not player then return end
-
-			local currentCount = self.activePlayersOnPlatform[player] or 0
-			if currentCount > 0 then
-				currentCount -= 1
-				if currentCount == 0 then
-					self.activePlayersOnPlatform[player] = nil
-				else
-					self.activePlayersOnPlatform[player] = currentCount
-				end
-			end
-
-			if next(self.activePlayersOnPlatform) == nil and not self.isDormant then
-				self.isDormant = true
-				self.context.isDormant = true
-				self.context.currentTargetHrp = nil
-				if self.stateMachine then
-					self.stateMachine:setState("Patrol", self.context)
-				end
-				log(string.format("[GuardAI] %s exiting platform %s -> Returning home via PatrolState.", self.model.Name, platform.Name))
-			end
-		end)
-	end
-
 	-- Initialize FSM StateMachine with generic states
 	self.stateMachine = StateMachine.new(function(oldState, newState)
 		log(string.format("[GuardAI] %s transitioned: %s -> %s", self.model.Name, tostring(oldState), tostring(newState)))
@@ -190,8 +155,8 @@ function GuardAI:init()
 	self.stateMachine:registerState(ChaseState)
 	self.stateMachine:registerState(AttackState)
 
-	-- Start FSM in Idle State
-	self.stateMachine:setState("Idle", self.context)
+	-- Start FSM in Patrol State
+	self.stateMachine:setState("Patrol", self.context)
 
 	-- Main Heartbeat Loop executing FSM state updates
 	self.heartbeatConn = RunService.Heartbeat:Connect(function(dt)

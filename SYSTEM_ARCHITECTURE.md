@@ -131,6 +131,7 @@ stateDiagram-v2
 ## 📚 5. SYSTEM SPECIFICATIONS
 
 For full technical specifications per system, refer to:
+- [Universal Guard AI Engine Architecture](docs/systems/12_GUARD_AI_ENGINE.md)
 - [Environmental Hazards Architecture](docs/systems/11_ENVIRONMENTAL_HAZARDS.md)
 - [Settings & TopbarPlus Documentation](docs/systems/10_SETTINGS_SYSTEM.md)
 - [Audio System Architecture](docs/systems/08_AUDIO_SYSTEM.md)
