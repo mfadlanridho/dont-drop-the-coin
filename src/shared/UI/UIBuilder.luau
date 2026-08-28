@@ -20,9 +20,10 @@ local function getOrCreate(parent, name, className)
 	return newInst
 end
 
-function UIBuilder.BuildAll()
+function UIBuilder.BuildAll(targetRoot)
+	local parentRoot = targetRoot or StarterGui
 	-- 1. Create HUDGui (ScreenGui, DisplayOrder = 1)
-	local hudGui = getOrCreate(StarterGui, "HUDGui", "ScreenGui")
+	local hudGui = getOrCreate(parentRoot, "HUDGui", "ScreenGui")
 	hudGui.DisplayOrder = 1
 	hudGui.ResetOnSpawn = false
 	hudGui.IgnoreGuiInset = true
@@ -101,7 +102,7 @@ function UIBuilder.BuildAll()
 	dashText.Font = Enum.Font.GothamBold
 
 	-- 2. Menus & Toggles (ScreenGui, DisplayOrder = 5)
-	local menusGui = getOrCreate(StarterGui, "Menus", "ScreenGui")
+	local menusGui = getOrCreate(parentRoot, "Menus", "ScreenGui")
 	menusGui.DisplayOrder = 5
 	menusGui.ResetOnSpawn = false
 	menusGui.IgnoreGuiInset = true
@@ -143,7 +144,7 @@ function UIBuilder.BuildAll()
 	createToggleButton("SettingsBtn", "Settings", "SETTINGS ⚙️")
 
 	-- 3. Tabs (ScreenGui, DisplayOrder = 10)
-	local tabsGui = getOrCreate(StarterGui, "Tabs", "ScreenGui")
+	local tabsGui = getOrCreate(parentRoot, "Tabs", "ScreenGui")
 	tabsGui.DisplayOrder = 10
 	tabsGui.ResetOnSpawn = false
 	tabsGui.IgnoreGuiInset = true
@@ -280,7 +281,7 @@ function UIBuilder.BuildAll()
 	createPassCard("MegaDashCard", "MEGA DASH ⚡", "Increases your Dash Bump hitbox radius and launch distance by +100%!", "249")
 
 	-- 4. OverlayGui (ScreenGui, DisplayOrder = 100)
-	local overlayGui = getOrCreate(StarterGui, "OverlayGui", "ScreenGui")
+	local overlayGui = getOrCreate(parentRoot, "OverlayGui", "ScreenGui")
 	overlayGui.DisplayOrder = 100
 	overlayGui.ResetOnSpawn = false
 	overlayGui.IgnoreGuiInset = true

@@ -124,3 +124,13 @@ stateDiagram-v2
 | `PlayVFX` | `RemoteEvent` | Server $\rightarrow$ Client | Replicates sound pitch effects, particle sparkles, and camera shake to nearby clients. |
 | `PlaySound` | `RemoteEvent` | Server $\rightarrow$ Client | Broadcasts 2D UI or 3D spatial sound triggers to target clients or all clients. |
 | `SendNotification` | `RemoteEvent` | Server $\rightarrow$ Client | Triggers animated banner announcements or toast popups on client screens. |
+| `UpdateVolumeSetting` | `RemoteEvent` | Client $\rightarrow$ Server | Updates and persists player volume preferences on the server. |
+
+---
+
+## 📚 5. SYSTEM SPECIFICATIONS
+
+For full technical specifications per system, refer to:
+- [Settings & TopbarPlus Documentation](docs/systems/10_SETTINGS_SYSTEM.md)
+- [Audio System Architecture](docs/systems/08_AUDIO_SYSTEM.md)
+- [UI & Monetization Architecture](docs/UI_AND_MONETIZATION_ARCHITECTURE.md)
