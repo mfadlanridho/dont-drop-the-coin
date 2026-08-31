@@ -22,8 +22,8 @@ local CoinSpawner = {}
 local CoinNodesFolder: Folder
 
 -- Helper to create a physical floating coin node by cloning CoinTemplate
-local function createCoinNode(name: string, pos: Vector3, zoneTier: number): Part
-	local node = TemplateUtil.CloneCoinTemplate() :: Part
+local function createCoinNode(name: string, pos: Vector3, zoneTier: number): BasePart
+	local node = TemplateUtil.CloneCoinTemplate()
 	node.Name = name
 	node.Position = pos
 	node.Anchored = true
@@ -44,7 +44,7 @@ local function createCoinNode(name: string, pos: Vector3, zoneTier: number): Par
 end
 
 -- Handle Pickup Request
-function CoinSpawner.HandlePickup(player: Player, coinNode: Part)
+function CoinSpawner.HandlePickup(player: Player, coinNode: BasePart)
 	if not coinNode or not coinNode:IsA("BasePart") or not coinNode:GetAttribute("Active") then
 		return
 	end
@@ -90,13 +90,15 @@ end
 
 -- Initialize Coin Spawner & Populate Aligned Floor Nodes
 function CoinSpawner.Init()
-	CoinNodesFolder = Workspace:FindFirstChild("CoinNodes") :: Folder
-	if not CoinNodesFolder then
-		CoinNodesFolder = Instance.new("Folder")
-		CoinNodesFolder.Name = "CoinNodes"
-		CoinNodesFolder.Parent = Workspace
+	local existingFolder = Workspace:FindFirstChild("CoinNodes") :: Folder?
+	if not existingFolder then
+		local newFolder = Instance.new("Folder")
+		newFolder.Name = "CoinNodes"
+		newFolder.Parent = Workspace
+		CoinNodesFolder = newFolder
 	else
-		CoinNodesFolder:ClearAllChildren()
+		existingFolder:ClearAllChildren()
+		CoinNodesFolder = existingFolder
 	end
 
 	-- Populate Aligned Floor Coin Nodes
@@ -125,7 +127,7 @@ function CoinSpawner.Init()
 	local pickupEvent = Remotes.Get("PickupCoin")
 	if pickupEvent then
 		pickupEvent.OnServerEvent:Connect(function(player, coinNode)
-			if typeof(coinNode) == "Instance" and coinNode:IsDescendantOf(CoinNodesFolder) then
+			if typeof(coinNode) == "Instance" and coinNode:IsA("BasePart") and coinNode:IsDescendantOf(CoinNodesFolder) then
 				CoinSpawner.HandlePickup(player, coinNode)
 			end
 		end)
