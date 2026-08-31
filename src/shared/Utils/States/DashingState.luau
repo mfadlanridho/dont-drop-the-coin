@@ -8,11 +8,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
-local StateMachine = require(Shared:WaitForChild("Utils"):WaitForChild("StateMachine"))
-local MovementMotor = require(Shared:WaitForChild("Utils"):WaitForChild("MovementMotor"))
-local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
+local StateMachine = require(Packages:WaitForChild("StateMachineModule"))
+local LocomotionModule = require(Packages:WaitForChild("LocomotionModule"))
+local MovementMotor = LocomotionModule.Motor
+local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local log = Logger.create("Combat")
 

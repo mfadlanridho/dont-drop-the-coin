@@ -9,8 +9,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local log = Logger.create("Combat")
 

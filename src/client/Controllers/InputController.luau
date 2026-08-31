@@ -9,11 +9,12 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
-local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
+local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local debugLog = Logger.create("Input")
 

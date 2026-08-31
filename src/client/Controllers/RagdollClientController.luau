@@ -8,9 +8,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared:WaitForChild("Remotes"))
-local RagdollModule = require(Shared:WaitForChild("Utils"):WaitForChild("RagdollModule"))
+local RagdollModule = require(Packages:WaitForChild("RagdollModule") :: ModuleScript)
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -30,8 +31,13 @@ function RagdollClientController.Init()
 				hrp.AssemblyLinearVelocity = launchVector
 			end
 
-			-- Trigger local BallSocketConstraint physical limb ragdoll
-			RagdollModule.TriggerRagdoll(LocalPlayer, duration or 2.5)
+			-- Trigger local PlatformStand physics disabler
+			RagdollModule.SetPlatformStand(char, true, true)
+			task.delay(duration or 2.5, function()
+				if char and char.Parent then
+					RagdollModule.SetPlatformStand(char, false, false)
+				end
+			end)
 			print(string.format("[RagdollClientController] Executed local physics ragdoll & knockback launch."))
 		end)
 	end

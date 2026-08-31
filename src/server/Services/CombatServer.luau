@@ -15,7 +15,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
 local Packages = ReplicatedStorage:WaitForChild("Packages")
-local RagdollModule = require(Shared:WaitForChild("Utils"):WaitForChild("RagdollModule"))
+local RagdollModule = require(Packages:WaitForChild("RagdollModule") :: ModuleScript)
 local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local log = Logger.create("Combat")
@@ -111,13 +111,23 @@ function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Mode
 
 	if victimPlayer then
 		if not PlayerFSM.CanBeBumped(victimPlayer) then return end
-		RagdollModule.TriggerRagdoll(victimPlayer, Config.RAGDOLL_DURATION)
+		PlayerFSM.SetState(victimPlayer, "Ragdolled")
+		RagdollModule.SetPlatformStand(victimModel, true, true)
 		LootExplosion.ScatterCoins(victimPlayer)
 
 		local ragdollRemote = Remotes.Get("TriggerRagdoll")
 		if ragdollRemote then
 			ragdollRemote:FireClient(victimPlayer, Config.RAGDOLL_DURATION, launchVector)
 		end
+
+		task.delay(Config.RAGDOLL_DURATION or 2.5, function()
+			if victimModel and victimModel.Parent then
+				RagdollModule.SetPlatformStand(victimModel, false, false)
+			end
+			pcall(function()
+				PlayerFSM.SetState(victimPlayer, "Normal")
+			end)
+		end)
 	else
 		-- Direct physics launch for NPC Test Target Dummy
 		victimHrp.AssemblyLinearVelocity = launchVector
