@@ -11,8 +11,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 
-local DataManager = script.Parent.Parent:WaitForChild("DataManager")
-local ProfileStore = require(DataManager:WaitForChild("ProfileStore"))
+local ServerScriptService = game:GetService("ServerScriptService")
+local ServerPackages = ServerScriptService:WaitForChild("ServerPackages")
+local ProfileStore = require(ServerPackages:WaitForChild("ProfileStore") :: ModuleScript)
 
 local PlayerProfileStore = ProfileStore.New(
 	Config.DATASTORE_KEY,

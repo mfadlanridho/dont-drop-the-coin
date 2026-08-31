@@ -13,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local PlayerStackCounts: { [Player]: number } = {}
 local PlayerVisualModels: { [Player]: { Part } } = {}
@@ -20,14 +21,11 @@ local PlayerVisualModels: { [Player]: { Part } } = {}
 local VisualFolder: Folder
 local StackVisualizer = {}
 
--- Create Client-Only Anchored Visual Coin Part
+-- Create Client-Only Anchored Visual Coin Part by cloning CoinTemplate
 local function createClientCoinPart(): Part
-	local coin = Instance.new("Part")
+	local coin = TemplateUtil.CloneCoinTemplate() :: Part
 	coin.Name = "VisualCoin"
-	coin.Shape = Enum.PartType.Cylinder
 	coin.Size = Vector3.new(0.3, 1.8, 1.8)
-	coin.Color = Color3.fromRGB(255, 215, 0) -- Shiny Gold
-	coin.Material = Enum.Material.Metal
 	coin.Anchored = true -- Anchored locally -> ZERO physical assembly inertia!
 	coin.CanCollide = false
 	coin.CanTouch = false

@@ -2,6 +2,7 @@
 --[[
     CoinSpawner.luau
     Manages zone coin node spawning, pickup distance anti-cheat validation, and node respawning across map floors.
+    Clones physical CoinTemplate from ReplicatedStorage.Templates.CoinTemplate.
     Location: src/server/Services/CoinSpawner.luau (Syncs to ServerScriptService.Server.Services.CoinSpawner)
 --]]
 
@@ -12,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local Services = script.Parent
 local StackServer = require(Services:WaitForChild("StackServer"))
@@ -19,16 +21,11 @@ local StackServer = require(Services:WaitForChild("StackServer"))
 local CoinSpawner = {}
 local CoinNodesFolder: Folder
 
--- Helper to create a physical floating coin node in Studio
+-- Helper to create a physical floating coin node by cloning CoinTemplate
 local function createCoinNode(name: string, pos: Vector3, zoneTier: number): Part
-	local node = Instance.new("Part")
+	local node = TemplateUtil.CloneCoinTemplate() :: Part
 	node.Name = name
-	node.Shape = Enum.PartType.Cylinder
-	node.Size = Vector3.new(0.5, 2.5, 2.5)
 	node.Position = pos
-	node.Orientation = Vector3.new(0, 0, 90)
-	node.Color = Color3.fromRGB(255, 223, 0)
-	node.Material = Enum.Material.Neon
 	node.Anchored = true
 	node.CanCollide = false
 	node:SetAttribute("Active", true)
@@ -134,7 +131,7 @@ function CoinSpawner.Init()
 		end)
 	end
 
-	print("[CoinSpawner] Initialized coin nodes across all 4 aligned map floors.")
+	print("[CoinSpawner] Initialized coin nodes cloned from ReplicatedStorage.Templates.CoinTemplate.")
 end
 
 return CoinSpawner

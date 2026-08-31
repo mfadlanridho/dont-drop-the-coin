@@ -2,6 +2,7 @@
 --[[
     LootExplosion.luau
     Handles stack detachment and physical unanchored coin scattering in 360-degree radial arc.
+    Clones physical CoinTemplate from ReplicatedStorage.Templates.CoinTemplate.
     Location: src/server/Services/LootExplosion.luau (Syncs to ServerScriptService.Server.Services.LootExplosion)
 --]]
 
@@ -11,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local Services = script.Parent
 local StackServer = require(Services:WaitForChild("StackServer"))
@@ -18,18 +20,13 @@ local StackServer = require(Services:WaitForChild("StackServer"))
 local DroppedCoinsFolder: Folder
 local LootExplosion = {}
 
--- Create Unanchored Dropped Coin Part
+-- Create Unanchored Dropped Coin Part by cloning CoinTemplate
 local function createDroppedCoin(): Part
-	local coin = Instance.new("Part")
+	local coin = TemplateUtil.CloneCoinTemplate() :: Part
 	coin.Name = "DroppedLootCoin"
-	coin.Shape = Enum.PartType.Cylinder
-	coin.Size = Vector3.new(0.4, 2.0, 2.0)
-	coin.Color = Color3.fromRGB(255, 223, 0) -- Glowing Gold
-	coin.Material = Enum.Material.Neon
 	coin.Anchored = false -- Physical unanchored bouncing part!
 	coin.CanCollide = true
 	coin.CanTouch = true
-	coin.Orientation = Vector3.new(0, 0, 90)
 	return coin
 end
 
@@ -40,59 +37,68 @@ function LootExplosion.ScatterCoins(player: Player)
 	local hrp = character:FindFirstChild("HumanoidRootPart") :: Part
 	if not hrp then return end
 
-	local stackCount = StackServer.GetStackCount(player)
-	if stackCount <= 0 then return end
+	local currentStack = StackServer.GetStackCount(player)
+	if currentStack <= 0 then return end
 
-	-- Clear player's head stack
-	StackServer.ClearStack(player)
+	local coinsToScatter = currentStack
+	StackServer.ResetStack(player)
 
-	-- Limit physical scatter parts to prevent lag (max 15 physical dropped parts per explosion)
-	local scatterCount = math.min(stackCount, 15)
+	local originPos = hrp.Position + Vector3.new(0, 4, 0)
 
-	for _ = 1, scatterCount do
+	for i = 1, coinsToScatter do
 		local coin = createDroppedCoin()
-		coin.Position = hrp.Position + Vector3.new(math.random(-2, 2), 3, math.random(-2, 2))
+		coin.Position = originPos
 		coin.Parent = DroppedCoinsFolder
 
-		-- Apply 360 radial impulse vector
-		local impulse = Vector3.new(
-			math.random(-30, 30),
-			math.random(20, 45),
-			math.random(-30, 30)
-		)
-		coin:ApplyImpulse(impulse)
+		-- Calculate 360-degree outward radial velocity vector
+		local angle = ((i - 1) / math.max(1, coinsToScatter)) * (math.pi * 2)
+		local speed = math.random(15, 30)
+		local upwardForce = math.random(25, 45)
+		local direction = Vector3.new(math.cos(angle) * speed, upwardForce, math.sin(angle) * speed)
 
-		-- Pickup listener for nearby players
-		local touchedConnection
-		touchedConnection = coin.Touched:Connect(function(hit)
-			local touchChar = hit.Parent
-			local picker = Players:GetPlayerFromCharacter(touchChar)
-			if picker and picker ~= player then
-				touchedConnection:Disconnect()
-				StackServer.AddCoin(picker, 1)
+		coin.AssemblyLinearVelocity = direction
+		coin.AssemblyAngularVelocity = Vector3.new(math.random(-15, 15), math.random(-15, 15), math.random(-15, 15))
+
+		-- Touch pickup listener for dropped coins
+		local touchConnection: RBXScriptConnection?
+		touchConnection = coin.Touched:Connect(function(hit)
+			local hitChar = hit.Parent
+			local hitPlayer = Players:GetPlayerFromCharacter(hitChar)
+			if hitPlayer and hitPlayer == player then
+				if touchConnection then
+					touchConnection:Disconnect()
+					touchConnection = nil
+				end
+				StackServer.AddCoin(hitPlayer, 1)
 				coin:Destroy()
 			end
 		end)
 
-		-- Despawn after 10 seconds
-		task.delay(Config.DESPAWN_DROPPED_COIN_TIME, function()
+		-- Despawn timer (15 seconds)
+		task.delay(15, function()
 			if coin and coin.Parent then
+				if touchConnection then
+					touchConnection:Disconnect()
+					touchConnection = nil
+				end
 				coin:Destroy()
 			end
 		end)
 	end
 
-	print(string.format("[LootExplosion] Exploded %d stack coins for %s!", stackCount, player.Name))
+	print(string.format("[LootExplosion] Exploded %d stack coins for %s!", coinsToScatter, player.Name))
 end
 
--- Initialize Folder
+-- Initialize Dropped Coins Folder
 function LootExplosion.Init()
-	DroppedCoinsFolder = Workspace:FindFirstChild("DroppedLootCoins") :: Folder
+	DroppedCoinsFolder = Workspace:FindFirstChild("DroppedCoins") :: Folder
 	if not DroppedCoinsFolder then
 		DroppedCoinsFolder = Instance.new("Folder")
-		DroppedCoinsFolder.Name = "DroppedLootCoins"
+		DroppedCoinsFolder.Name = "DroppedCoins"
 		DroppedCoinsFolder.Parent = Workspace
 	end
+
+	print("[LootExplosion] Initialized dropped coins scatter service.")
 end
 
 return LootExplosion
