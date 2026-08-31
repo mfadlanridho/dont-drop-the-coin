@@ -16,3 +16,6 @@
 [submodule "packages/AnimationModule"]
 	path = packages/AnimationModule
 	url = https://github.com/mfadlanridho/AnimationModule.git
+[submodule "packages/LocomotionModule"]
+	path = packages/LocomotionModule
+	url = https://github.com/mfadlanridho/LocomotionModule.git
