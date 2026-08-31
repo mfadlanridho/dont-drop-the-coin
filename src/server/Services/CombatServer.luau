@@ -21,78 +21,11 @@ local Logger = require(Packages:WaitForChild("LoggerModule"))
 local log = Logger.create("Combat")
 
 local Services = script.Parent
-local StackServer = require(Services:WaitForChild("StackServer"))
 local LootExplosion = require(Services:WaitForChild("LootExplosion"))
 local HitboxService = require(Services:WaitForChild("HitboxService"))
 
 local LastBumpTime: { [number]: number } = {}
 local CombatServer = {}
-
--- Create a Test Target Dummy in front of a Player for 1-Player Solo Testing
-function CombatServer.SpawnTestDummy(spawnerPlayer: Player): Model?
-	local char = spawnerPlayer.Character
-	if not char then return nil end
-	local hrp = char:FindFirstChild("HumanoidRootPart") :: Part
-	if not hrp then return nil end
-
-	-- Clean up existing dummy if present
-	local oldDummy = Workspace:FindFirstChild("TestTargetDummy")
-	if oldDummy then oldDummy:Destroy() end
-
-	local dummy = Instance.new("Model")
-	dummy.Name = "TestTargetDummy"
-
-	local dummyHrp = Instance.new("Part")
-	dummyHrp.Name = "HumanoidRootPart"
-	dummyHrp.Size = Vector3.new(2, 2, 1)
-	dummyHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -8) -- 8 studs directly in front of player
-	dummyHrp.Anchored = false
-	dummyHrp.CanCollide = true
-	dummyHrp.Parent = dummy
-
-	local dummyTorso = Instance.new("Part")
-	dummyTorso.Name = "UpperTorso"
-	dummyTorso.Size = Vector3.new(2, 2.5, 1)
-	dummyTorso.Color = Color3.fromRGB(255, 120, 0) -- Orange Test Target
-	dummyTorso.Material = Enum.Material.SmoothPlastic
-	dummyTorso.CFrame = dummyHrp.CFrame * CFrame.new(0, 1.25, 0)
-	dummyTorso.Anchored = false
-	dummyTorso.CanCollide = true
-	dummyTorso.Parent = dummy
-
-	local dummyHead = Instance.new("Part")
-	dummyHead.Name = "Head"
-	dummyHead.Size = Vector3.new(1.2, 1.2, 1.2)
-	dummyHead.Color = Color3.fromRGB(255, 220, 100)
-	dummyHead.CFrame = dummyTorso.CFrame * CFrame.new(0, 1.8, 0)
-	dummyHead.Anchored = false
-	dummyHead.CanCollide = true
-	dummyHead.Parent = dummy
-
-	local humanoid = Instance.new("Humanoid")
-	humanoid.Name = "Humanoid"
-	humanoid.Parent = dummy
-
-	-- Welds
-	local w1 = Instance.new("WeldConstraint")
-	w1.Part0 = dummyHrp
-	w1.Part1 = dummyTorso
-	w1.Parent = dummyTorso
-
-	local w2 = Instance.new("WeldConstraint")
-	w2.Part0 = dummyTorso
-	w2.Part1 = dummyHead
-	w2.Parent = dummyHead
-
-	dummy.PrimaryPart = dummyHrp
-	dummy.Parent = Workspace
-
-	-- Attach full-body HitboxCapsule
-	HitboxService.CreateHitbox(dummy)
-
-	log(string.format("Spawned 3D TestTargetDummy 8 studs in front of %s for solo testing!", spawnerPlayer.Name))
-	return dummy
-end
 
 -- Execute Full Combat Bump API on a Victim (Player or Dummy Model)
 function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Model)
@@ -103,7 +36,7 @@ function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Mode
 	local attackerHrp = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart") :: Part
 	local launchDir = if attackerHrp then (victimHrp.Position - attackerHrp.Position).Unit else -victimHrp.CFrame.LookVector
 
-	local knockbackForce = Config.BUMP_BASE_IMPULSE + 10
+	local knockbackForce = Config.BUMP_BASE_IMPULSE
 	local launchVector = launchDir * knockbackForce + Vector3.new(0, 35, 0)
 
 	-- Check if victim is a Player or an NPC Dummy Model
@@ -288,13 +221,6 @@ function CombatServer.Init()
 		simBumpEvent.OnServerEvent:Connect(function(player)
 			log(string.format("SimulateDashBump remote event received for player %s", player.Name))
 			CombatServer.BumpVictim(nil, player)
-		end)
-	end
-
-	local spawnDummyEvent = Remotes.Get("SpawnTestDummy")
-	if spawnDummyEvent then
-		spawnDummyEvent.OnServerEvent:Connect(function(player)
-			CombatServer.SpawnTestDummy(player)
 		end)
 	end
 

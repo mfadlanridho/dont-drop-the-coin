@@ -215,7 +215,7 @@ local function bindVaultPad(pad: BasePart)
 		end
 	end)
 
-	log(string.format("Bound Vault Pad: %s (Multiplier: %.1fx, RequireGroup: %s)", pad.Name, pad:GetAttribute("Multiplier") or 1, tostring(pad:GetAttribute("RequireGroup") or (pad.Name == "GroupMemberVault"))))
+	log(string.format("Bound Vault Pad: %s (Multiplier: %.1fx, RequireGroup: %s)", pad.Name, (pad:GetAttribute("Multiplier") :: number?) or 1, tostring(pad:GetAttribute("RequireGroup") or (pad.Name == "GroupMemberVault"))))
 end
 
 -- Initialize Service
