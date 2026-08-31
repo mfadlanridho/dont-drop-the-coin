@@ -41,7 +41,7 @@ function LootExplosion.ScatterCoins(player: Player)
 	if currentStack <= 0 then return end
 
 	local coinsToScatter = currentStack
-	StackServer.ResetStack(player)
+	StackServer.ClearStack(player)
 
 	local originPos = hrp.Position + Vector3.new(0, 4, 0)
 
@@ -59,19 +59,22 @@ function LootExplosion.ScatterCoins(player: Player)
 		coin.AssemblyLinearVelocity = direction
 		coin.AssemblyAngularVelocity = Vector3.new(math.random(-15, 15), math.random(-15, 15), math.random(-15, 15))
 
-		-- Touch pickup listener for dropped coins
-		local touchConnection: RBXScriptConnection?
-		touchConnection = coin.Touched:Connect(function(hit)
-			local hitChar = hit.Parent
-			local hitPlayer = Players:GetPlayerFromCharacter(hitChar)
-			if hitPlayer and hitPlayer == player then
-				if touchConnection then
-					touchConnection:Disconnect()
-					touchConnection = nil
+		-- Touch pickup listener for dropped coins (with 1.0s pickup delay so coins fly outward first!)
+		task.delay(1.0, function()
+			if not coin or not coin.Parent then return end
+			local touchConnection: RBXScriptConnection?
+			touchConnection = coin.Touched:Connect(function(hit)
+				local hitChar = hit.Parent
+				local hitPlayer = Players:GetPlayerFromCharacter(hitChar)
+				if hitPlayer then
+					if touchConnection then
+						touchConnection:Disconnect()
+						touchConnection = nil
+					end
+					StackServer.AddCoin(hitPlayer, 1)
+					coin:Destroy()
 				end
-				StackServer.AddCoin(hitPlayer, 1)
-				coin:Destroy()
-			end
+			end)
 		end)
 
 		-- Despawn timer (15 seconds)
