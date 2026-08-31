@@ -1,4 +1,4 @@
---!strict
+--!nonstrict
 --[[
     GuardAIService.luau
     Server orchestrator that binds all Guard and Drone NPC AI models in Workspace to the universal GuardAI framework.
@@ -11,13 +11,13 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
-local Logger = require(Packages:WaitForChild("LoggerModule") :: ModuleScript)
-local GuardAI = require(Shared:WaitForChild("AI"):WaitForChild("GuardAI") :: ModuleScript)
+local Logger = require(Packages:WaitForChild("LoggerModule"))
+local GuardAI = require(Shared:WaitForChild("AI"):WaitForChild("GuardAI"))
 
 local log = Logger.create("Combat")
 
 local Services = script.Parent
-local CombatServer = require(Services:WaitForChild("CombatServer") :: ModuleScript)
+local CombatServer = require(Services:WaitForChild("CombatServer"))
 
 local GuardAIService = {}
 local activeGuards: { [Model]: any } = {}

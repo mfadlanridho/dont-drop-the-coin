@@ -11,7 +11,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"))
 local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local Services = script.Parent
@@ -59,10 +58,11 @@ function LootExplosion.ScatterCoins(player: Player)
 		coin.AssemblyLinearVelocity = direction
 		coin.AssemblyAngularVelocity = Vector3.new(math.random(-15, 15), math.random(-15, 15), math.random(-15, 15))
 
+		local touchConnection: RBXScriptConnection?
+
 		-- Touch pickup listener for dropped coins (with 1.0s pickup delay so coins fly outward first!)
 		task.delay(1.0, function()
 			if not coin or not coin.Parent then return end
-			local touchConnection: RBXScriptConnection?
 			touchConnection = coin.Touched:Connect(function(hit)
 				local hitChar = hit.Parent
 				local hitPlayer = Players:GetPlayerFromCharacter(hitChar)
@@ -94,11 +94,14 @@ end
 
 -- Initialize Dropped Coins Folder
 function LootExplosion.Init()
-	DroppedCoinsFolder = Workspace:FindFirstChild("DroppedCoins") :: Folder
-	if not DroppedCoinsFolder then
-		DroppedCoinsFolder = Instance.new("Folder")
-		DroppedCoinsFolder.Name = "DroppedCoins"
-		DroppedCoinsFolder.Parent = Workspace
+	local existingFolder = Workspace:FindFirstChild("DroppedCoins") :: Folder?
+	if not existingFolder then
+		local newFolder = Instance.new("Folder")
+		newFolder.Name = "DroppedCoins"
+		newFolder.Parent = Workspace
+		DroppedCoinsFolder = newFolder
+	else
+		DroppedCoinsFolder = existingFolder
 	end
 
 	print("[LootExplosion] Initialized dropped coins scatter service.")
