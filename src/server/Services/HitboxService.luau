@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
     HitboxService.luau
-    Dedicated server service managing full-body character HitboxCapsule creation, extents measuring, lifecycle destruction, and target spatial queries for players & test dummies.
+    Dedicated server service managing full-body character HitboxCapsule creation, lifecycle destruction, and Strategy B event-driven target spatial queries.
     Location: src/server/Services/HitboxService.luau (Syncs to ServerScriptService.Server.Services.HitboxService)
 --]]
 
@@ -15,8 +15,12 @@ local Logger = require(Packages:WaitForChild("LoggerModule"))
 local log = Logger.create("Combat")
 local HitboxService = {}
 
+-- ⚡ Strategy B Event-Driven Hitbox Cache Registry
+local CachedHitboxes: { [Model]: BasePart } = {}
+
 -- Create and weld a full-body HitboxCapsule to character/dummy HumanoidRootPart
 function HitboxService.CreateHitbox(character: Model): BasePart?
+	if not character then return nil end
 	local hrp = character:FindFirstChild("HumanoidRootPart") :: Part
 	if not hrp then return nil end
 
@@ -48,14 +52,27 @@ function HitboxService.CreateHitbox(character: Model): BasePart?
 		log(string.format("Created full-body HitboxCapsule for %s (Size: %.1f x %.1f x %.1f)", character.Name, hitboxWidth, hitboxHeight, hitboxDepth))
 	end
 
+	-- Register in Strategy B Cache
+	CachedHitboxes[character] = hitbox
+
+	-- Listen for model destruction to cleanly unregister
+	character.AncestryChanged:Connect(function(_, parent)
+		if not parent then
+			CachedHitboxes[character] = nil
+		end
+	end)
+
 	return hitbox
 end
 
 -- Destroy character/dummy HitboxCapsule
 function HitboxService.DestroyHitbox(character: Model)
-	local hitbox = character:FindFirstChild("HitboxCapsule")
-	if hitbox then
-		hitbox:Destroy()
+	CachedHitboxes[character] = nil
+	if character then
+		local hitbox = character:FindFirstChild("HitboxCapsule")
+		if hitbox then
+			hitbox:Destroy()
+		end
 	end
 end
 
@@ -67,40 +84,26 @@ function HitboxService.GetHitbox(model: Instance): BasePart?
 	return nil
 end
 
--- Get array of HitboxCapsule parts for all active opponent players & NPC test dummies
+-- Strategy B: Return cached array of HitboxCapsule parts with zero Workspace scanning
 function HitboxService.GetTargetHitboxes(excludingPlayer: Player?): { BasePart }
 	local hitboxes = {}
-	local processedModels = {}
+	local excludingChar = excludingPlayer and excludingPlayer.Character
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= excludingPlayer and player.Character then
-			processedModels[player.Character] = true
-			local hitbox = HitboxService.CreateHitbox(player.Character)
-			if hitbox then
+	for model, hitbox in pairs(CachedHitboxes) do
+		if model and model.Parent and hitbox and hitbox.Parent then
+			if model ~= excludingChar then
 				table.insert(hitboxes, hitbox)
 			end
-		end
-	end
-
-	-- Also include any NPC Dummy models in Workspace with a Humanoid
-	for _, child in ipairs(Workspace:GetChildren()) do
-		if child:IsA("Model") and not processedModels[child] then
-			if child:FindFirstChildOfClass("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-				local excludingChar = excludingPlayer and excludingPlayer.Character
-				if child ~= excludingChar then
-					local hitbox = HitboxService.CreateHitbox(child)
-					if hitbox then
-						table.insert(hitboxes, hitbox)
-					end
-				end
-			end
+		else
+			-- Clean stale entry
+			CachedHitboxes[model] = nil
 		end
 	end
 
 	return hitboxes
 end
 
--- Initialize Service
+-- Initialize Service & Event Listeners
 function HitboxService.Init()
 	local function onCharacterAdded(character: Model)
 		task.defer(function()
@@ -122,16 +125,18 @@ function HitboxService.Init()
 		onPlayerAdded(p)
 	end
 
-	-- Scan Workspace for existing NPC Dummies
+	-- Scan Workspace for existing NPC Dummies & dynamic additions
 	Workspace.ChildAdded:Connect(function(child)
-		if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") then
+		if child:IsA("Model") then
 			task.defer(function()
-				HitboxService.CreateHitbox(child)
+				if child:FindFirstChildOfClass("Humanoid") then
+					HitboxService.CreateHitbox(child)
+				end
 			end)
 		end
 	end)
 
-	log("HitboxService initialized successfully with Dummy NPC support.")
+	log("HitboxService initialized successfully with Strategy B Event-Driven Cache.")
 end
 
 return HitboxService
