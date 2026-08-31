@@ -1,0 +1,18 @@
+[submodule "packages/LoggerModule"]
+	path = packages/LoggerModule
+	url = https://github.com/mfadlanridho/LoggerModule.git
+[submodule "packages/AudioModule"]
+	path = packages/AudioModule
+	url = https://github.com/mfadlanridho/AudioModule.git
+[submodule "packages/RagdollModule"]
+	path = packages/RagdollModule
+	url = https://github.com/mfadlanridho/RagdollModule.git
+[submodule "packages/StateMachineModule"]
+	path = packages/StateMachineModule
+	url = https://github.com/mfadlanridho/StateMachineModule.git
+[submodule "packages/DebugGuiModule"]
+	path = packages/DebugGuiModule
+	url = https://github.com/mfadlanridho/DebugGuiModule.git
+[submodule "packages/AnimationModule"]
+	path = packages/AnimationModule
+	url = https://github.com/mfadlanridho/AnimationModule.git
