@@ -216,14 +216,6 @@ function CombatServer.Init()
 		log("DashBump remote event listener registered successfully.")
 	end
 
-	local simBumpEvent = Remotes.Get("SimulateDashBump")
-	if simBumpEvent then
-		simBumpEvent.OnServerEvent:Connect(function(player)
-			log(string.format("SimulateDashBump remote event received for player %s", player.Name))
-			CombatServer.BumpVictim(nil, player)
-		end)
-	end
-
 	Players.PlayerRemoving:Connect(function(player)
 		LastBumpTime[player.UserId] = nil
 	end)
