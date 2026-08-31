@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 
 local PlayerStacks = {}
@@ -98,9 +99,9 @@ function StackServer.Init()
 	end)
 
 	local function onCharacterSpawned(player: Player)
-		-- Start player with 3 coins for immediate visual stack & combat test
+		-- Start player with initial coins configured in Config.INITIAL_STACK_COUNT
 		task.defer(function()
-			StackServer.SetStackCount(player, 3)
+			StackServer.SetStackCount(player, Config.INITIAL_STACK_COUNT or 3)
 		end)
 	end
 
