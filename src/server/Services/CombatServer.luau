@@ -14,8 +14,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
+local Packages = ReplicatedStorage:WaitForChild("Packages")
 local RagdollModule = require(Shared:WaitForChild("Utils"):WaitForChild("RagdollModule"))
-local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger"))
+local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local log = Logger.create("Combat")
 

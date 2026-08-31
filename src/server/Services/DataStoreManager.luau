@@ -87,7 +87,9 @@ end
 
 -- Initialize Listeners
 function DataStoreManager.Init()
-	Players.PlayerAdded:Connect(onPlayerAdded)
+	Players.PlayerAdded:Connect(function(player)
+		task.spawn(onPlayerAdded, player)
+	end)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 	for _, player in ipairs(Players:GetPlayers()) do

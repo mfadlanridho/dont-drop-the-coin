@@ -14,10 +14,17 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local Packages = ReplicatedStorage:WaitForChild("Packages")
 
-local DebugFolder = script.Parent.Parent:WaitForChild("Debug")
-local DebugConfig = require(DebugFolder:WaitForChild("DebugConfig"))
-local GizmoRenderer = require(DebugFolder:WaitForChild("GizmoRenderer"))
+local DebugGuiModule = require(Packages:WaitForChild("DebugGuiModule"))
+local GizmoRenderer = DebugGuiModule.GizmoRenderer
+
+local DebugConfig = {
+	DashBump = {
+		ShowGizmos = RunService:IsStudio(),
+		AlwaysShowHitboxes = false,
+	}
+}
 
 local LocalPlayer = Players.LocalPlayer
 local renderer: any
@@ -117,7 +124,7 @@ function DashBumpGizmoController.DrawHitGizmo(attackerChar: Model, victimName: s
 	r:setMarker(hitMarker, hitPosition, Color3.fromRGB(255, 30, 30))
 
 	-- 4. Draw Red Wireframe Box around Victim's HitboxCapsule
-	local victimPlayer = Players:GetPlayerByName(victimName)
+	local victimPlayer = Players:FindFirstChild(victimName) :: Player?
 	if victimPlayer and victimPlayer.Character then
 		local hitbox = victimPlayer.Character:FindFirstChild("HitboxCapsule") :: Part
 		if hitbox then

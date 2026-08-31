@@ -9,10 +9,13 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+
 local Utils = script.Parent
-local StateMachine = require(Utils:WaitForChild("StateMachine"))
+local StateMachine = require(Packages:WaitForChild("StateMachineModule"))
 local States = Utils:WaitForChild("States")
-local Logger = require(Utils:WaitForChild("Logger"))
+local Logger = require(Packages:WaitForChild("LoggerModule"))
 
 local log = Logger.create("FSM")
 

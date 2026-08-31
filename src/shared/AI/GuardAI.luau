@@ -2,7 +2,7 @@
 --[[
     GuardAI.luau
     Clean, simple 100% Humanoid Guard AI Engine based on Roblox AI Workspace.
-    Strict 0-margin spatial footprint check for instant platform boundary exit.
+    Unanchors all model parts, sets server network ownership (SetNetworkOwner(nil)), and runs FSM updates.
     Location: src/shared/AI/GuardAI.luau
 --]]
 
@@ -11,8 +11,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Logger = require(Shared:WaitForChild("Utils"):WaitForChild("Logger") :: ModuleScript)
-local StateMachine = require(Shared:WaitForChild("Utils"):WaitForChild("StateMachine") :: ModuleScript)
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Logger = require(Packages:WaitForChild("LoggerModule") :: ModuleScript)
+local StateMachine = require(Packages:WaitForChild("StateMachineModule") :: ModuleScript)
 
 local log = Logger.create("Combat")
 
@@ -54,10 +55,10 @@ local function isPlayerOnPlatform(player: Player, platform: BasePart?): boolean
 	if not hrp then return false end
 
 	local relPos = platform.CFrame:PointToObjectSpace(hrp.Position)
-	local halfSize = (platform.Size * 0.5) + Vector3.new(0, 15, 0) -- 0 margin X/Z
+	local halfSize = platform.Size * 0.5
 	return math.abs(relPos.X) <= halfSize.X 
 	   and math.abs(relPos.Z) <= halfSize.Z 
-	   and relPos.Y >= -4 and relPos.Y <= halfSize.Y
+	   and relPos.Y >= -4 and relPos.Y <= halfSize.Y + 15
 end
 
 function GuardAI.new(model: Model, config: GuardAIConfig?): GuardAIInstance
@@ -166,7 +167,7 @@ function GuardAI:init()
 		end
 
 		self.context.deltaTime = dt
-		self.stateMachine:update(self.context)
+		self.stateMachine:update(self.context, dt)
 	end)
 end
 

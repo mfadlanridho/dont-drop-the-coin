@@ -80,3 +80,13 @@ Workspace/
 ```
 
 `GuardAIService.luau` automatically scans `Workspace.Hazards.Platforms` and binds `GuardAI.new()` to all AI models.
+
+---
+
+## 6. Polishing Roadmap: Predictive Interception Pursuit System
+
+For future AI polish iterations:
+* **Velocity Vector Prediction:** Intercept player motion path ahead of time:
+  $$\text{InterceptPos} = \text{targetHrp.Position} + (\text{targetHrp.AssemblyLinearVelocity} \times 0.4)$$
+* **Delta-Distance Throttling:** Update `MoveTo()` destination only when target position changes $> 1.5$ studs or after 0.2s time limit, ensuring 100% fluid, continuous walk strides without micro-stuttering.
+

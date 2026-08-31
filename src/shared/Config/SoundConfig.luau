@@ -36,8 +36,8 @@ SoundConfig.Sounds = {
 
 	-- Gameplay Sounds
 	CoinPickup = {
-		Id = "rbxassetid://135483737426662",
-		Volume = 0.6,
+		Id = "rbxassetid://9114223179",
+		Volume = 0.8,
 		Pitch = 1.0,
 	} :: SoundDefinition,
 	DashBump = {
