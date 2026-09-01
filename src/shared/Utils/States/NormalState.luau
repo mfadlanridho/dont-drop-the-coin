@@ -5,7 +5,10 @@
     Location: src/shared/Utils/States/NormalState.luau
 --]]
 
-local StateMachine = require(script.Parent.Parent:WaitForChild("StateMachine"))
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+
+local StateMachine = require(Packages:WaitForChild("StateMachineModule"))
 
 local NormalState: StateMachine.StateDefinition = {
 	name = "Normal",
