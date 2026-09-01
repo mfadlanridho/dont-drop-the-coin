@@ -47,6 +47,22 @@ function StackServer.AddCoin(player: Player, zoneMultiplier: number?): number
 	return stackData.Count
 end
 
+--- Centralized API to process any coin pickup across the game engine (awards coins & plays pitch combo audio)
+function StackServer.AwardCoinPickup(player: Player, amount: number?, originPart: BasePart?): number
+	local coins = amount or 1
+	local newStack = StackServer.AddCoin(player, coins)
+
+	-- Trigger Pitch Combo Audio to client
+	local soundRemote = Remotes.Get("PlaySound")
+	if soundRemote then
+		local character = player.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		soundRemote:FireClient(player, "CoinPickupCombo", hrp or originPart)
+	end
+
+	return newStack
+end
+
 -- Set Explicit Stack Count (for testing/debug)
 function StackServer.SetStackCount(player: Player, count: number): number
 	local userId = player.UserId

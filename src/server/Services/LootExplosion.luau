@@ -2,7 +2,7 @@
 --[[
     LootExplosion.luau
     Handles stack detachment and physical unanchored coin scattering in 360-degree radial arc.
-    Clones physical CoinTemplate from ReplicatedStorage.Templates.CoinTemplate.
+    Delegates dropped coin collection and audio replication to CoinService.luau.
     Location: src/server/Services/LootExplosion.luau (Syncs to ServerScriptService.Server.Services.LootExplosion)
 --]]
 
@@ -15,6 +15,7 @@ local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("Template
 
 local Services = script.Parent
 local StackServer = require(Services:WaitForChild("StackServer"))
+local CoinService = require(Services:WaitForChild("CoinService"))
 
 local DroppedCoinsFolder: Folder
 local LootExplosion = {}
@@ -67,12 +68,7 @@ function LootExplosion.ScatterCoins(player: Player)
 				local hitChar = hit.Parent
 				local hitPlayer = Players:GetPlayerFromCharacter(hitChar)
 				if hitPlayer then
-					if touchConnection then
-						touchConnection:Disconnect()
-						touchConnection = nil
-					end
-					StackServer.AddCoin(hitPlayer, 1)
-					coin:Destroy()
+					CoinService.CollectDroppedLoot(hitPlayer, coin, touchConnection)
 				end
 			end)
 		end)

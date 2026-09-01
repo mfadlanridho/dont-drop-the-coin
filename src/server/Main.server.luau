@@ -21,6 +21,7 @@ end
 local SERVICE_ORDER = {
 	"DataStoreManager",
 	"StackServer",
+	"CoinService",
 	"CoinSpawner",
 	"LootExplosion",
 	"HitboxService",
