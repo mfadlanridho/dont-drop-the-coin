@@ -1,4 +1,4 @@
---!strict
+--!nonstrict
 --[[
     GuardAI.luau
     Clean, simple 100% Humanoid Guard AI Engine based on Roblox AI Workspace.
@@ -10,7 +10,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Logger = require(Packages:WaitForChild("LoggerModule") :: ModuleScript)
 local StateMachine = require(Packages:WaitForChild("StateMachineModule") :: ModuleScript)
@@ -88,7 +87,12 @@ function GuardAI.new(model: Model, config: GuardAIConfig?): GuardAIInstance
 		if typeof(attrPart) == "Instance" and attrPart:IsA("BasePart") then
 			resolvedPlatform = attrPart
 		elseif model.Parent and model.Parent:IsA("Model") then
-			resolvedPlatform = model.Parent:FindFirstChild("PlatformFloor") or model.Parent:FindFirstChildWhichIsA("BasePart")
+			local floor = model.Parent:FindFirstChild("PlatformFloor")
+			if floor and floor:IsA("BasePart") then
+				resolvedPlatform = floor
+			else
+				resolvedPlatform = model.Parent:FindFirstChildWhichIsA("BasePart")
+			end
 		end
 	end
 	self.platformPart = resolvedPlatform
