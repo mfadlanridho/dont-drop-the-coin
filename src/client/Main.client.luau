@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
     Main.client.luau
-    Client entrypoint initializing all client controllers with fault-tolerant safeInit protected execution.
+    Client entrypoint initializing all client controllers with fault-tolerant safeInit protected execution and explicit CONTROLLER_ORDER boot sequence.
     Location: src/client/Main.client.luau (Syncs to StarterPlayerScripts.Client.Main)
 --]]
 
@@ -24,13 +24,25 @@ end
 -- Initialize Developer Debug Suite ('P' key overlay)
 safeInit("DebugGuiModule", DebugGuiModule.Init)
 
--- Dynamically initialize all client controllers in Controllers folder
-for _, controllerScript in ipairs(Controllers:GetChildren()) do
-	if controllerScript:IsA("ModuleScript") then
+-- Explicit boot order of client controllers
+local CONTROLLER_ORDER = {
+	"AudioController",
+	"StackVisualizer",
+	"InputController",
+	"DashBumpGizmoController",
+	"RagdollClientController",
+	"DebugController",
+}
+
+for _, controllerName in ipairs(CONTROLLER_ORDER) do
+	local controllerScript = Controllers:FindFirstChild(controllerName)
+	if controllerScript and controllerScript:IsA("ModuleScript") then
 		local controller = require(controllerScript) :: any
 		if typeof(controller) == "table" and typeof(controller.Init) == "function" then
-			safeInit(controllerScript.Name, controller.Init)
+			safeInit(controllerName, controller.Init)
 		end
+	else
+		warn(string.format("⚠️ [ClientMain] Missing or misnamed controller script: %q", controllerName))
 	end
 end
 
