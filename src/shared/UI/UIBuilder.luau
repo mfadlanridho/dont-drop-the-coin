@@ -62,26 +62,6 @@ function UIBuilder.BuildAll(targetRoot)
 	bankedLabel.Font = Enum.Font.GothamMedium
 	bankedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- StackMeter
-	local stackMeter = getOrCreate(hudGui, "StackMeter", "Frame")
-	stackMeter.AnchorPoint = Vector2.new(0, 0.5)
-	stackMeter.Position = UDim2.new(0, 20, 0.5, 0)
-	stackMeter.Size = UDim2.new(0, 24, 0, 300)
-	stackMeter.BackgroundColor3 = Color3.fromRGB(15, 18, 28)
-	stackMeter.BackgroundTransparency = 0.2
-
-	local stackCorner = getOrCreate(stackMeter, "UICorner", "UICorner")
-	stackCorner.CornerRadius = UDim.new(0, 12)
-
-	local stackBar = getOrCreate(stackMeter, "Bar", "Frame")
-	stackBar.AnchorPoint = Vector2.new(0, 1)
-	stackBar.Position = UDim2.new(0, 4, 1, -4)
-	stackBar.Size = UDim2.new(1, -8, 0, 0)
-	stackBar.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
-
-	local barCorner = getOrCreate(stackBar, "UICorner", "UICorner")
-	barCorner.CornerRadius = UDim.new(0, 8)
-
 	-- DashBumpButton
 	local dashButton = getOrCreate(hudGui, "DashBumpButton", "ImageButton")
 	dashButton.AnchorPoint = Vector2.new(1, 1)
