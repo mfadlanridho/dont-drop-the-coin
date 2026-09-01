@@ -31,6 +31,7 @@ local renderer: any
 local persistentRenderer: any
 
 local DashBumpGizmoController = {}
+DashBumpGizmoController.DebugConfig = DebugConfig
 
 local function getRenderer()
 	if not renderer then
@@ -147,14 +148,6 @@ function DashBumpGizmoController.DrawHitGizmo(attackerChar: Model, victimName: s
 end
 
 function DashBumpGizmoController.Init()
-	-- Register Combat Debug Panel Tab
-	local combatPanel = DebugGuiModule.registerPanel("Combat", "Combat & Physics", 1)
-	DebugGuiModule.setAction("Combat", "ToggleHitboxes", "Toggle Always-On Hitbox Wireframes", function()
-		DebugConfig.DashBump.AlwaysShowHitboxes = not DebugConfig.DashBump.AlwaysShowHitboxes
-		DebugGuiModule.setEntry("Combat", "HitboxStatus", "Hitbox Wireframes:", DebugConfig.DashBump.AlwaysShowHitboxes and "VISIBLE" or "HIDDEN")
-	end)
-	DebugGuiModule.setEntry("Combat", "HitboxStatus", "Hitbox Wireframes:", "HIDDEN")
-
 	-- Listen for local player dash trigger
 	LocalPlayer.AttributeChanged:Connect(function(attr)
 		if attr == "FSMState" and LocalPlayer:GetAttribute("FSMState") == "Dashing" then
@@ -190,7 +183,7 @@ function DashBumpGizmoController.Init()
 			if descendant:IsA("Part") and descendant.Name == "HitboxCapsule" then
 				local model = descendant.Parent
 				local modelName = model and model.Name or "Unknown"
-				local wireBox = pr:getWireBox("AlwaysOnHitbox_" .. descendant:GetDebugId(), Color3.fromRGB(0, 255, 120), descendant.Size)
+				local wireBox = pr:getWireBox("AlwaysOnHitbox_" .. descendant:GetFullName(), Color3.fromRGB(0, 255, 120), descendant.Size)
 				pr:setWireBox(wireBox, descendant.CFrame, descendant.Size, Color3.fromRGB(0, 255, 120))
 			end
 		end
