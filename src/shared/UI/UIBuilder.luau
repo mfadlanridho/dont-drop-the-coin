@@ -79,7 +79,24 @@ function UIBuilder.BuildAll(targetRoot)
 	dashText.Text = "DASH BUMP\n[E]"
 	dashText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dashText.TextSize = 14
-	dashText.Font = Enum.Font.GothamBold
+	-- SettingsHUDButton (Top Right HUD Button)
+	local settingsButton = getOrCreate(hudGui, "SettingsHUDButton", "TextButton")
+	settingsButton.AnchorPoint = Vector2.new(1, 0)
+	settingsButton.Position = UDim2.new(1, -20, 0, 20)
+	settingsButton.Size = UDim2.new(0, 44, 0, 44)
+	settingsButton.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
+	settingsButton.BackgroundTransparency = 0.25
+	settingsButton.Text = "⚙️"
+	settingsButton.TextSize = 22
+	settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	settingsButton.Font = Enum.Font.GothamBold
+
+	local settingsCorner = getOrCreate(settingsButton, "UICorner", "UICorner")
+	settingsCorner.CornerRadius = UDim.new(0, 12)
+
+	local settingsStroke = getOrCreate(settingsButton, "UIStroke", "UIStroke")
+	settingsStroke.Color = Color3.fromRGB(255, 215, 0)
+	settingsStroke.Thickness = 2
 
 	-- 2. Menus & Toggles (ScreenGui, DisplayOrder = 5)
 	local menusGui = getOrCreate(parentRoot, "Menus", "ScreenGui")

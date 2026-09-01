@@ -1,24 +1,16 @@
 -- Client Settings Controller
--- Manages Settings UI visibility with TopbarPlus and binds volume sliders to settings changes
--- Place in: src/client/Controllers/SettingsController.client.luau -> StarterPlayer.StarterPlayerScripts.Client.Controllers.SettingsController
+-- Manages Settings UI visibility with custom HUD Settings button and binds volume sliders to settings changes.
+-- Location: src/client/Controllers/SettingsController.client.luau
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-local PackagesFolder = ReplicatedStorage:WaitForChild("Packages")
 local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 local UIFolder = SharedFolder:WaitForChild("UI")
 local Slider = require(UIFolder:WaitForChild("Slider"))
-local Icon = require(PackagesFolder:WaitForChild("TopbarPlus"))
 local OpenFrame = require(UIFolder:WaitForChild("OpenFrame"))
 local ButtonFunctionality = require(UIFolder:WaitForChild("ButtonFunctionality"))
-
--- Create the TopbarPlus icon for Settings immediately
-local settingsIcon = Icon.new()
-	:setName("SettingsButton")
-	:setImage("rbxassetid://18209577633")
-	:setCaption("Settings")
 
 -- Self-contained helper to find or construct the SettingsFrame UI autonomously
 local function getOrCreateSettingsFrame()
@@ -58,125 +50,102 @@ local function getOrCreateSettingsFrame()
 	settingsStroke.Thickness = 2
 	settingsStroke.Parent = settingsFrame
 
-	-- Header
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.Position = UDim2.new(0, 20, 0, 15)
-	header.Size = UDim2.new(1, -40, 0, 40)
-	header.BackgroundTransparency = 1
-	header.Parent = settingsFrame
-
-	local headerTitle = Instance.new("TextLabel")
-	headerTitle.Name = "Title"
-	headerTitle.Size = UDim2.new(0, 200, 1, 0)
-	headerTitle.BackgroundTransparency = 1
-	headerTitle.Text = "SETTINGS ⚙️"
-	headerTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
-	headerTitle.TextSize = 22
-	headerTitle.Font = Enum.Font.GothamBlack
-	headerTitle.TextXAlignment = Enum.TextXAlignment.Left
-	headerTitle.Parent = header
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "TitleLabel"
+	titleLabel.Position = UDim2.new(0, 20, 0, 15)
+	titleLabel.Size = UDim2.new(1, -70, 0, 30)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "SETTINGS"
+	titleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+	titleLabel.TextSize = 22
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = settingsFrame
 
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Name = "Close"
-	closeBtn.AnchorPoint = Vector2.new(1, 0.5)
-	closeBtn.Position = UDim2.new(1, 0, 0.5, 0)
-	closeBtn.Size = UDim2.new(0, 32, 0, 32)
-	closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+	closeBtn.Name = "CloseButton"
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.Position = UDim2.new(1, -15, 0, 15)
+	closeBtn.Size = UDim2.new(0, 30, 0, 30)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
 	closeBtn.Text = "X"
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeBtn.TextSize = 16
 	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.Parent = header
+	closeBtn.Parent = settingsFrame
 
 	local closeCorner = Instance.new("UICorner")
 	closeCorner.CornerRadius = UDim.new(0, 8)
 	closeCorner.Parent = closeBtn
 
-	-- Music Setting Row
-	local musicSetting = Instance.new("Frame")
-	musicSetting.Name = "MusicSetting"
-	musicSetting.Position = UDim2.new(0, 20, 0, 75)
-	musicSetting.Size = UDim2.new(1, -40, 0, 65)
-	musicSetting.BackgroundColor3 = Color3.fromRGB(14, 18, 28)
-	musicSetting.BackgroundTransparency = 0.3
-	musicSetting.Parent = settingsFrame
+	local closeScale = Instance.new("UIScale")
+	closeScale.Parent = closeBtn
 
-	local msCorner = Instance.new("UICorner")
-	msCorner.CornerRadius = UDim.new(0, 12)
-	msCorner.Parent = musicSetting
+	local volumeContainer = Instance.new("Frame")
+	volumeContainer.Name = "VolumeContainer"
+	volumeContainer.Position = UDim2.new(0, 20, 0, 70)
+	volumeContainer.Size = UDim2.new(1, -40, 0, 80)
+	volumeContainer.BackgroundTransparency = 1
+	volumeContainer.Parent = settingsFrame
 
-	local musicLabel = Instance.new("TextLabel")
-	musicLabel.Name = "Label"
-	musicLabel.Position = UDim2.new(0, 15, 0, 0)
-	musicLabel.Size = UDim2.new(0, 130, 1, 0)
-	musicLabel.BackgroundTransparency = 1
-	musicLabel.Text = "MUSIC VOLUME"
-	musicLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	musicLabel.TextSize = 13
-	musicLabel.Font = Enum.Font.GothamBold
-	musicLabel.TextXAlignment = Enum.TextXAlignment.Left
-	musicLabel.Parent = musicSetting
+	local volLabel = Instance.new("TextLabel")
+	volLabel.Name = "VolumeLabel"
+	volLabel.Position = UDim2.new(0, 0, 0, 0)
+	volLabel.Size = UDim2.new(1, 0, 0, 25)
+	volLabel.BackgroundTransparency = 1
+	volLabel.Text = "MUSIC VOLUME"
+	volLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	volLabel.TextSize = 16
+	volLabel.Font = Enum.Font.GothamMedium
+	volLabel.TextXAlignment = Enum.TextXAlignment.Left
+	volLabel.Parent = volumeContainer
 
-	local musicSlider = Instance.new("Frame")
-	musicSlider.Name = "MusicSlider"
-	musicSlider.Position = UDim2.new(0, 170, 0, 95)
-	musicSlider.Size = UDim2.new(1, -210, 0, 24)
-	musicSlider.BackgroundColor3 = Color3.fromRGB(30, 36, 52)
-	musicSlider.Parent = settingsFrame
+	local trackFrame = Instance.new("Frame")
+	trackFrame.Name = "MusicVolumeSlider"
+	trackFrame.Position = UDim2.new(0, 0, 0, 35)
+	trackFrame.Size = UDim2.new(1, 0, 0, 16)
+	trackFrame.BackgroundColor3 = Color3.fromRGB(40, 48, 68)
+	trackFrame.Parent = volumeContainer
 
-	local sliderCorner = Instance.new("UICorner")
-	sliderCorner.CornerRadius = UDim.new(0, 12)
-	sliderCorner.Parent = musicSlider
+	local trackCorner = Instance.new("UICorner")
+	trackCorner.CornerRadius = UDim.new(0, 8)
+	trackCorner.Parent = trackFrame
 
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.new(0.5, 0, 1, 0)
-	fill.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-	fill.Parent = musicSlider
-
-	local fillCorner = Instance.new("UICorner")
-	fillCorner.CornerRadius = UDim.new(0, 12)
-	fillCorner.Parent = fill
-
-	local knob = Instance.new("TextButton")
-	knob.Name = "Knob"
-	knob.AnchorPoint = Vector2.new(0.5, 0.5)
-	knob.Position = UDim2.new(0.5, 0, 0.5, 0)
-	knob.Size = UDim2.new(0, 28, 0, 28)
-	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	knob.Text = ""
-	knob.Parent = musicSlider
+	local knobFrame = Instance.new("Frame")
+	knobFrame.Name = "Knob"
+	knobFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	knobFrame.Position = UDim2.new(0.3, 0, 0.5, 0)
+	knobFrame.Size = UDim2.new(0, 28, 0, 28)
+	knobFrame.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+	knobFrame.Parent = trackFrame
 
 	local knobCorner = Instance.new("UICorner")
 	knobCorner.CornerRadius = UDim.new(1, 0)
-	knobCorner.Parent = knob
+	knobCorner.Parent = knobFrame
 
 	return settingsFrame
 end
 
 local settingsFrame = getOrCreateSettingsFrame()
-local header = settingsFrame:WaitForChild("Header")
-local closeButton = header:WaitForChild("Close")
-local musicSlider = settingsFrame:WaitForChild("MusicSlider")
-local knob = musicSlider:WaitForChild("Knob")
+local volumeContainer = settingsFrame:WaitForChild("VolumeContainer")
+local musicSlider = volumeContainer:WaitForChild("MusicVolumeSlider") :: Frame
+local knob = musicSlider:WaitForChild("Knob") :: Frame
+local closeButton = settingsFrame:WaitForChild("CloseButton") :: TextButton
 
--- Client-side BindableEvent for immediate volume sync with MusicController
-local volumeEvent = ReplicatedStorage:FindFirstChild("MusicVolumeChanged")
+-- ReplicatedStorage BindableEvent for music volume updates
+local volumeEvent = ReplicatedStorage:FindFirstChild("MusicVolumeChanged") :: BindableEvent?
 if not volumeEvent then
 	volumeEvent = Instance.new("BindableEvent")
 	volumeEvent.Name = "MusicVolumeChanged"
 	volumeEvent.Parent = ReplicatedStorage
 end
 
--- Server-side RemoteEvent for persistent volume setting
-local updateVolumeSettingRemote = ReplicatedStorage:FindFirstChild("UpdateVolumeSetting")
-if not updateVolumeSettingRemote then
-	updateVolumeSettingRemote = Instance.new("RemoteEvent")
-	updateVolumeSettingRemote.Name = "UpdateVolumeSetting"
-	updateVolumeSettingRemote.Parent = ReplicatedStorage
-end
+-- RemoteEvent to persist settings to server ProfileStore
+local remotesFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes")
+local Remotes = require(remotesFolder :: ModuleScript)
+local updateVolumeSettingRemote = Remotes.Get("UpdateMusicVolume")
 
+-- Fetch saved volume from player leaderstats / data folder if available
 local otherData = LocalPlayer:WaitForChild("OtherData", 10)
 local savedVolume = 0.3
 if otherData then
@@ -186,35 +155,26 @@ if otherData then
 	end
 end
 
--- Flag to prevent recursion loop during toggles
-local isToggling = false
+-- Bind custom HUD Settings button click event
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+task.spawn(function()
+	local hudGui = playerGui:WaitForChild("HUDGui", 10)
+	if hudGui then
+		local settingsHUDButton = hudGui:WaitForChild("SettingsHUDButton", 10) :: TextButton?
+		if settingsHUDButton then
+			local hudScale = settingsHUDButton:FindFirstChildOfClass("UIScale")
+			if not hudScale then
+				hudScale = Instance.new("UIScale")
+				hudScale.Parent = settingsHUDButton
+			end
 
--- Synchronize topbar icon state with frame visibility
-settingsIcon.selected:Connect(function()
-	if isToggling then return end
-	isToggling = true
-	if not settingsFrame.Visible then
-		OpenFrame.ToggleFrame("SettingsFrame")
-	end
-	isToggling = false
-end)
-
-settingsIcon.deselected:Connect(function()
-	if isToggling then return end
-	isToggling = true
-	if settingsFrame.Visible then
-		OpenFrame.ToggleFrame("SettingsFrame")
-	end
-	isToggling = false
-end)
-
--- Deselect topbar icon if frame becomes invisible via Close button or other menus
-settingsFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-	if not settingsFrame.Visible then
-		if settingsIcon.isSelected then
-			isToggling = true
-			settingsIcon:deselect()
-			isToggling = false
+			ButtonFunctionality.SetupButton(settingsHUDButton, hudScale, {
+				playHoverSound = true,
+				playClickSound = true,
+				onClickCallback = function()
+					OpenFrame.ToggleFrame("SettingsFrame")
+				end
+			})
 		end
 	end
 end)
