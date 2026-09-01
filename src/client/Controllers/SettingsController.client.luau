@@ -6,10 +6,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
+local PackagesFolder = ReplicatedStorage:WaitForChild("Packages")
 local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 local UIFolder = SharedFolder:WaitForChild("UI")
 local Slider = require(UIFolder:WaitForChild("Slider"))
-local Icon = require(SharedFolder:WaitForChild("TopbarPlus"):WaitForChild("Icon"))
+local Icon = require(PackagesFolder:WaitForChild("TopbarPlus"))
 local OpenFrame = require(UIFolder:WaitForChild("OpenFrame"))
 local ButtonFunctionality = require(UIFolder:WaitForChild("ButtonFunctionality"))
 
