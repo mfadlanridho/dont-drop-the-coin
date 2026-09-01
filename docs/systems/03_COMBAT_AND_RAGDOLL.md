@@ -5,7 +5,7 @@ This document specifies the OOP StateMachine architecture, MovementMotor integra
 ---
 
 ## 🎯 OBJECTIVES
-1. Enforce strict OOP state management using class-based state definitions with lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) adapted from the *Roblox AI Workspace* pattern (`StateMachine.luau`).
+1. Enforce strict OOP state management using class-based state definitions with lifecycle hooks (`canEnter`, `enter`, `exit`, `update`) using `StateMachine.luau`.
 2. Maintain **persistent context tables** (`PlayerFSM.luau`) per player to guarantee state variables (`dashConnection`) are preserved across `enter()` and `exit()` hooks.
 3. Integrate **`MovementMotor.luau`** (`src/shared/Utils/MovementMotor.luau`) for unified, leak-proof creation, steering capture (`AutoRotate`), and destruction of `LinearVelocity` physics constraints.
 4. Integrate **`AnimationControllerV2`** (`src/client/Animation/`) for client-side preloading, sequence playback, and skill animation management (`Config.DASH_ANIMATION_ID`).

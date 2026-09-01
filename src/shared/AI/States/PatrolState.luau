@@ -1,7 +1,7 @@
 --!strict
 --[[
     PatrolState.luau
-    Universal Roblox AI Workspace Patrol State.
+    Universal Guard AI Patrol State.
     Patrols between platform waypoints using native Humanoid:MoveTo().
     Location: src/shared/AI/States/PatrolState.luau
 --]]

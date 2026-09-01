@@ -42,7 +42,7 @@
 - [x] Multi-Vault Banking System (`LobbyVault` 1.0x, `GroupMemberVault` 1.2x, `Zone2ChaosVault` 2.0x, `Zone3VoidVault` 3.0x).
 - [x] SafeZone combat immunity.
 - [x] Modular Hazards (`PistonCrusher`, `PendulumObstacle`, `DisappearingPlatform`).
-- [x] Official **Roblox AI Workspace** Humanoid Guard AI Engine (`GuardAI.luau`, `IdleState`, `PatrolState`, `ChaseState`, `AttackState`).
+- [x] Official Humanoid Guard AI Engine (`GuardAI.luau`, `IdleState`, `PatrolState`, `ChaseState`, `AttackState`).
 
 ### ✅ Day 5: Audio, Settings & Map Layout (100% COMPLETE)
 - [x] `GameplayAudio.luau` sound manager with SoundGroup channels (`Master`, `SFX`, `Music`).

@@ -1,7 +1,7 @@
 --!strict
 --[[
     ChaseState.luau
-    Universal Roblox AI Workspace Chase State.
+    Universal Guard AI Chase State.
     Pursues target player calling native Humanoid:MoveTo().
     Location: src/shared/AI/States/ChaseState.luau
 --]]

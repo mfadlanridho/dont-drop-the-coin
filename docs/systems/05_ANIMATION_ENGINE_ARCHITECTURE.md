@@ -1,6 +1,6 @@
 # 📄 ANIMATION ENGINE ARCHITECTURE (`AnimationControllerV2`)
 
-This document specifies the architecture, sequence players, 2D directional mixers, asset preloader, and character rig observation engine adapted from *Roblox AI Workspace* for **Don't Drop The Coin!**.
+This document specifies the architecture, sequence players, 2D directional mixers, asset preloader, and character rig observation engine for **Don't Drop The Coin!**.
 
 ---
 

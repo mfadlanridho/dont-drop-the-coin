@@ -1,7 +1,7 @@
 --!strict
 --[[
     IdleState.luau
-    Universal Roblox AI Workspace Idle State.
+    Universal Guard AI Idle State.
     Dormant standby state; monitors platform zone entry and vision range scans.
     Location: src/shared/AI/States/IdleState.luau
 --]]

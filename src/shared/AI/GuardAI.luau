@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
     GuardAI.luau
-    Clean, simple 100% Humanoid Guard AI Engine based on Roblox AI Workspace.
+    Clean, simple 100% Humanoid Guard AI Engine.
     Unanchors all model parts, sets server network ownership (SetNetworkOwner(nil)), and runs FSM updates.
     Location: src/shared/AI/GuardAI.luau
 --]]

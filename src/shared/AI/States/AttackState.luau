@@ -1,7 +1,7 @@
 --!strict
 --[[
     AttackState.luau
-    Universal Roblox AI Workspace Attack State.
+    Universal Guard AI Attack State.
     Executes attack lunge / animation and calls onAttackHit callback.
     Location: src/shared/AI/States/AttackState.luau
 --]]

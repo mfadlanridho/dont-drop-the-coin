@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-The **Universal Guard AI Engine** provides automated NPC enemy and hazard guard behaviors based on the **Roblox AI Workspace** pattern. Every AI model in the game uses standard Roblox **`Humanoid`** character navigation (`Humanoid:MoveTo()`), driven by a 4-state finite state machine (**`StateMachine.luau`**).
+The **Universal Guard AI Engine** provides automated NPC enemy and hazard guard behaviors. Every AI model in the game uses standard Roblox **`Humanoid`** character navigation (`Humanoid:MoveTo()`), driven by a 4-state finite state machine (**`StateMachine.luau`**).
 
 ---
 

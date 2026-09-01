@@ -1,6 +1,6 @@
 # 📄 MOVEMENT MOTOR ARCHITECTURE (`MovementMotor.luau`)
 
-This document specifies the architecture, configuration parameters, steering capture/release mechanisms, and physics constraint lifecycle management of **`MovementMotor.luau`** adapted from *Roblox AI Workspace* for **Don't Drop The Coin!**.
+This document specifies the architecture, configuration parameters, steering capture/release mechanisms, and physics constraint lifecycle management of **`MovementMotor.luau`** for **Don't Drop The Coin!**.
 
 ---
 
