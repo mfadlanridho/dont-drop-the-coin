@@ -32,6 +32,7 @@ local REMOTE_NAMES = {
 	"PlayVFX",
 	"PlaySound",
 	"SendNotification",
+	"UpdateMusicVolume",
 }
 
 -- Initialize Remote Events

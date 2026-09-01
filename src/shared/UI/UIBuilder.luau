@@ -79,24 +79,7 @@ function UIBuilder.BuildAll(targetRoot)
 	dashText.Text = "DASH BUMP\n[E]"
 	dashText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dashText.TextSize = 14
-	-- SettingsHUDButton (Top Right HUD Button)
-	local settingsButton = getOrCreate(hudGui, "SettingsHUDButton", "TextButton")
-	settingsButton.AnchorPoint = Vector2.new(1, 0)
-	settingsButton.Position = UDim2.new(1, -20, 0, 20)
-	settingsButton.Size = UDim2.new(0, 44, 0, 44)
-	settingsButton.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
-	settingsButton.BackgroundTransparency = 0.25
-	settingsButton.Text = "⚙️"
-	settingsButton.TextSize = 22
-	settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	settingsButton.Font = Enum.Font.GothamBold
-
-	local settingsCorner = getOrCreate(settingsButton, "UICorner", "UICorner")
-	settingsCorner.CornerRadius = UDim.new(0, 12)
-
-	local settingsStroke = getOrCreate(settingsButton, "UIStroke", "UIStroke")
-	settingsStroke.Color = Color3.fromRGB(255, 215, 0)
-	settingsStroke.Thickness = 2
+	dashText.Font = Enum.Font.GothamBold
 
 	-- 2. Menus & Toggles (ScreenGui, DisplayOrder = 5)
 	local menusGui = getOrCreate(parentRoot, "Menus", "ScreenGui")
@@ -319,6 +302,88 @@ function UIBuilder.BuildAll(targetRoot)
 
 	local rBtnCorner = getOrCreate(revengeBtn, "UICorner", "UICorner")
 	rBtnCorner.CornerRadius = UDim.new(0, 12)
+
+	-- Settings Modal Window
+	local settingsFrame = getOrCreate(tabsGui, "SettingsFrame", "Frame")
+	settingsFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	settingsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	settingsFrame.Size = UDim2.new(0, 480, 0, 180)
+	settingsFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
+	settingsFrame.BackgroundTransparency = 0.15
+	settingsFrame.Visible = false
+
+	local settingsCorner = getOrCreate(settingsFrame, "UICorner", "UICorner")
+	settingsCorner.CornerRadius = UDim.new(0, 16)
+
+	local settingsStroke = getOrCreate(settingsFrame, "UIStroke", "UIStroke")
+	settingsStroke.Color = Color3.fromRGB(255, 215, 0)
+	settingsStroke.Thickness = 2
+
+	local settingsTitle = getOrCreate(settingsFrame, "TitleLabel", "TextLabel")
+	settingsTitle.Position = UDim2.new(0, 20, 0, 15)
+	settingsTitle.Size = UDim2.new(1, -70, 0, 30)
+	settingsTitle.BackgroundTransparency = 1
+	settingsTitle.Text = "SETTINGS"
+	settingsTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+	settingsTitle.TextSize = 22
+	settingsTitle.Font = Enum.Font.GothamBold
+	settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+	local settingsCloseBtn = getOrCreate(settingsFrame, "CloseButton", "TextButton")
+	settingsCloseBtn.AnchorPoint = Vector2.new(1, 0)
+	settingsCloseBtn.Position = UDim2.new(1, -15, 0, 15)
+	settingsCloseBtn.Size = UDim2.new(0, 30, 0, 30)
+	settingsCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+	settingsCloseBtn.Text = "X"
+	settingsCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	settingsCloseBtn.TextSize = 16
+	settingsCloseBtn.Font = Enum.Font.GothamBold
+
+	local settingsCloseCorner = getOrCreate(settingsCloseBtn, "UICorner", "UICorner")
+	settingsCloseCorner.CornerRadius = UDim.new(0, 8)
+
+	local settingsCloseScale = getOrCreate(settingsCloseBtn, "UIScale", "UIScale")
+
+	local volContainer = getOrCreate(settingsFrame, "VolumeContainer", "Frame")
+	volContainer.Position = UDim2.new(0, 20, 0, 70)
+	volContainer.Size = UDim2.new(1, -40, 0, 80)
+	volContainer.BackgroundTransparency = 1
+
+	local volLabel = getOrCreate(volContainer, "VolumeLabel", "TextLabel")
+	volLabel.Position = UDim2.new(0, 0, 0, 0)
+	volLabel.Size = UDim2.new(1, 0, 0, 25)
+	volLabel.BackgroundTransparency = 1
+	volLabel.Text = "MUSIC VOLUME"
+	volLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	volLabel.TextSize = 16
+	volLabel.Font = Enum.Font.GothamMedium
+	volLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	local trackFrame = getOrCreate(volContainer, "MusicVolumeSlider", "Frame")
+	trackFrame.Position = UDim2.new(0, 0, 0, 35)
+	trackFrame.Size = UDim2.new(1, 0, 0, 16)
+	trackFrame.BackgroundColor3 = Color3.fromRGB(40, 48, 68)
+	trackFrame.Active = true
+
+	local trackCorner = getOrCreate(trackFrame, "UICorner", "UICorner")
+	trackCorner.CornerRadius = UDim.new(0, 8)
+
+	local fillFrame = getOrCreate(trackFrame, "Fill", "Frame")
+	fillFrame.Size = UDim2.new(0.3, 0, 1, 0)
+	fillFrame.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+
+	local fillCorner = getOrCreate(fillFrame, "UICorner", "UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 8)
+
+	local knobFrame = getOrCreate(trackFrame, "Knob", "Frame")
+	knobFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	knobFrame.Position = UDim2.new(0.3, 0, 0.5, 0)
+	knobFrame.Size = UDim2.new(0, 28, 0, 28)
+	knobFrame.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+	knobFrame.Active = true
+
+	local knobCorner = getOrCreate(knobFrame, "UICorner", "UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
 
 	return true
 end

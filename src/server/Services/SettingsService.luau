@@ -1,16 +1,10 @@
--- Server Settings Service
--- Handles remote settings updates from clients and persists values in player data
--- Place in: src/server/Services/SettingsService.luau -> ServerScriptService.Server.Services.SettingsService
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local updateVolumeSettingRemote = ReplicatedStorage:FindFirstChild("UpdateVolumeSetting")
-if not updateVolumeSettingRemote then
-	updateVolumeSettingRemote = Instance.new("RemoteEvent")
-	updateVolumeSettingRemote.Name = "UpdateVolumeSetting"
-	updateVolumeSettingRemote.Parent = ReplicatedStorage
-end
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Remotes") :: ModuleScript)
+
+local updateVolumeSettingRemote = Remotes.Get("UpdateMusicVolume")
 
 local function ensurePlayerSettingsData(player: Player)
 	local otherData = player:FindFirstChild("OtherData")

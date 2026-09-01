@@ -27,8 +27,24 @@ function Slider.new(sliderFrame: Frame, knob: GuiButton, callback: (value: numbe
 	self.IsDragging = false
 	self.ActiveInput = nil
 
-	-- Set anchor point of knob to center for perfect alignment
+	-- Set anchor point of knob to center and enable input processing
 	self.Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	self.Knob.Active = true
+	self.SliderFrame.Active = true
+
+	-- Auto-create Fill progress bar if missing in target slider frame
+	local fill = self.SliderFrame:FindFirstChild("Fill")
+	if not fill then
+		fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Size = UDim2.new(0, 0, 1, 0)
+		fill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+		fill.Parent = self.SliderFrame
+
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 8)
+		c.Parent = fill
+	end
 
 	-- Handle slider input start (mouse down / touch start on knob)
 	self.Knob.InputBegan:Connect(function(input)

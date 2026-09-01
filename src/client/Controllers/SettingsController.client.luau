@@ -1,5 +1,6 @@
 -- Client Settings Controller
--- Manages Settings UI visibility with custom HUD Settings button and binds volume sliders to settings changes.
+-- Manages Settings UI visibility and binds volume sliders to settings changes.
+-- Supports both static Studio UI and autonomous fallback creation.
 -- Location: src/client/Controllers/SettingsController.client.luau
 
 local Players = game:GetService("Players")
@@ -12,25 +13,21 @@ local Slider = require(UIFolder:WaitForChild("Slider"))
 local OpenFrame = require(UIFolder:WaitForChild("OpenFrame"))
 local ButtonFunctionality = require(UIFolder:WaitForChild("ButtonFunctionality"))
 
--- Self-contained helper to find or construct the SettingsFrame UI autonomously
-local function getOrCreateSettingsFrame()
+-- Helper to find or autonomously construct SettingsFrame
+local function getOrCreateSettingsFrame(): Frame
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-	local tabs = playerGui:FindFirstChild("Tabs")
+	local tabs = playerGui:WaitForChild("Tabs", 10) :: ScreenGui?
 	if not tabs then
-		tabs = Instance.new("ScreenGui")
-		tabs.Name = "Tabs"
-		tabs.DisplayOrder = 10
-		tabs.ResetOnSpawn = false
-		tabs.IgnoreGuiInset = true
-		tabs.Parent = playerGui
+		tabs = playerGui:FindFirstChild("Tabs") :: ScreenGui?
 	end
+	assert(tabs, "PlayerGui.Tabs ScreenGui not found!")
 
-	local settingsFrame = tabs:FindFirstChild("SettingsFrame")
+	local settingsFrame = tabs:FindFirstChild("Settings") or tabs:FindFirstChild("SettingsFrame") :: Frame?
 	if settingsFrame then
 		return settingsFrame
 	end
 
-	-- Create self-contained SettingsFrame
+	-- Create self-contained premium SettingsFrame fallback
 	settingsFrame = Instance.new("Frame")
 	settingsFrame.Name = "SettingsFrame"
 	settingsFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -141,9 +138,9 @@ if not volumeEvent then
 end
 
 -- RemoteEvent to persist settings to server ProfileStore
-local remotesFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes")
+local remotesFolder = SharedFolder:WaitForChild("Remotes")
 local Remotes = require(remotesFolder :: ModuleScript)
-local updateVolumeSettingRemote = Remotes.Get("UpdateMusicVolume")
+local updateVolumeSettingRemote = pcall(function() return Remotes.Get("UpdateMusicVolume") end) and Remotes.Get("UpdateMusicVolume") or nil
 
 -- Fetch saved volume from player leaderstats / data folder if available
 local otherData = LocalPlayer:WaitForChild("OtherData", 10)
@@ -155,44 +152,22 @@ if otherData then
 	end
 end
 
--- Bind custom HUD Settings button click event
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-task.spawn(function()
-	local hudGui = playerGui:WaitForChild("HUDGui", 10)
-	if hudGui then
-		local settingsHUDButton = hudGui:WaitForChild("SettingsHUDButton", 10) :: TextButton?
-		if settingsHUDButton then
-			local hudScale = settingsHUDButton:FindFirstChildOfClass("UIScale")
-			if not hudScale then
-				hudScale = Instance.new("UIScale")
-				hudScale.Parent = settingsHUDButton
-			end
-
-			ButtonFunctionality.SetupButton(settingsHUDButton, hudScale, {
-				playHoverSound = true,
-				playClickSound = true,
-				onClickCallback = function()
-					OpenFrame.ToggleFrame("SettingsFrame")
-				end
-			})
-		end
-	end
-end)
-
 -- Setup Close Button with standard click feedback
 local closeButtonScale = closeButton:FindFirstChildOfClass("UIScale")
 ButtonFunctionality.SetupButton(closeButton, closeButtonScale, {
 	playHoverSound = true,
 	playClickSound = true,
 	onClickCallback = function()
-		OpenFrame.ToggleFrame("SettingsFrame")
-	end
+		OpenFrame.ToggleFrame(settingsFrame.Name)
+	end,
 })
 
 -- Initialize the volume slider with 10% (0.1) step snapping
 local sliderInstance = Slider.new(musicSlider, knob, function(value)
 	volumeEvent:Fire(value)
-	updateVolumeSettingRemote:FireServer(value)
+	if updateVolumeSettingRemote then
+		updateVolumeSettingRemote:FireServer(value)
+	end
 end, 0.1)
 
 sliderInstance:SetValue(savedVolume)
