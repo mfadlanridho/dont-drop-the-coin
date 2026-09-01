@@ -12,14 +12,13 @@ The project utilizes a **3-Tier ScreenGui Hierarchy** in `StarterGui` to maintai
 game.StarterGui
 │
 ├── 1️⃣ HUDGui (ScreenGui) ───────────── DisplayOrder = 1, ResetOnSpawn = false
-│   ├── WalletFrame                  -- Top-left/center cash & coin stack count
-│   ├── StackMeter                   -- Side vertical stack height & sway stability bar
+│   ├── WalletFrame                  -- Top-left/center cash & coin stack count (Synced via HUDController)
 │   ├── AbilityBar                   -- Touch button / 'E' key Dash Bump with radial cooldown
 │   └── LeaderboardFrame             -- Server stack leaderboard
 │
-├── 2️⃣ Menus & Tabs (ScreenGui) ────── DisplayOrder = 5 (Menus) & 10 (Tabs / Tabs_mine)
-│   ├── Menus.Toggles                -- Container for HUD navigation buttons (Shop, VIP, Settings)
-│   └── Tabs / Tabs_mine             -- Container for modal popup windows:
+├── 2️⃣ Menus & Tabs (ScreenGui) ────── DisplayOrder = 5 (Menus) & 10 (Tabs)
+│   ├── Menus.Toggles                -- Container for HUD navigation buttons (Shop, Passes, VIP, Settings)
+│   └── Tabs                         -- Container for modal popup windows:
 │       ├── Black                    -- Fullscreen dark background overlay (Transparency = 0.5)
 │       ├── Shop                     -- Unified Shop modal window (Passes, Boosters, Gacha)
 │       └── Settings                 -- Audio, graphics, and controls modal

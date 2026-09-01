@@ -102,6 +102,7 @@ function CoinSpawner.Init()
 	end
 
 	-- Populate Aligned Floor Coin Nodes
+	-- will need to replace later with actual area boundaries spawning defined by builders
 	local alignedPositions = {
 		-- Zone 1 Coins (Z = -50, Y = 10)
 		{ Pos = Vector3.new(-8, 10, -50), Zone = 1 },
@@ -113,10 +114,10 @@ function CoinSpawner.Init()
 		{ Pos = Vector3.new(0, 19, -90), Zone = 2 },
 		{ Pos = Vector3.new(8, 19, -90), Zone = 2 },
 
-		-- Zone 3 Coins (Z = -130, Y = 27)
-		{ Pos = Vector3.new(-8, 27, -130), Zone = 3 },
-		{ Pos = Vector3.new(0, 27, -130), Zone = 3 },
-		{ Pos = Vector3.new(8, 27, -130), Zone = 3 },
+		-- -- Zone 3 Coins (Z = -130, Y = 27)
+		-- { Pos = Vector3.new(-8, 27, -130), Zone = 3 },
+		-- { Pos = Vector3.new(0, 27, -130), Zone = 3 },
+		-- { Pos = Vector3.new(8, 27, -130), Zone = 3 },
 	}
 
 	for i, data in ipairs(alignedPositions) do

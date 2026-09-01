@@ -58,8 +58,9 @@ sequenceDiagram
 
 ---
 
-## 🛠️ API CONTRACT
+## 🛠️ API CONTRACT & UI SYNC
 
 - **`BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boolean`**: Server API to cash out a player's stack at a specific vault pad with custom multipliers and group gate checks.
 - **`BankServer.UpdateLeaderstats(player: Player)`**: Updates `leaderstats.Coins` and `leaderstats.Stack` IntValues on player list.
+- **`HUDController.luau`**: Client controller listening to `leaderstats.Stack.Changed` and `leaderstats.Coins.Changed` to update `WalletFrame.CoinsLabel` (`COINS: X`) and `WalletFrame.BankedLabel` (`BANKED: $X`) in real-time.
 - **`Remotes.BankCoins` (`RemoteEvent`)**: `Server -> Client`: `BankCoins:FireClient(player, earnedCash, stackCoins, multiplier)`

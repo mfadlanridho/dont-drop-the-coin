@@ -27,6 +27,7 @@ safeInit("DebugGuiModule", DebugGuiModule.Init)
 -- Explicit boot order of client controllers
 local CONTROLLER_ORDER = {
 	"AudioController",
+	"HUDController",
 	"StackVisualizer",
 	"InputController",
 	"DashBumpGizmoController",
