@@ -16,6 +16,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 
+local PlayerFSM = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerFSM"))
 local DebugGuiModule = require(Packages:WaitForChild("DebugGuiModule"))
 local GizmoRenderer = DebugGuiModule.GizmoRenderer
 
@@ -148,12 +149,10 @@ function DashBumpGizmoController.DrawHitGizmo(attackerChar: Model, victimName: s
 end
 
 function DashBumpGizmoController.Init()
-	-- Listen for local player dash trigger
-	LocalPlayer.AttributeChanged:Connect(function(attr)
-		if attr == "FSMState" and LocalPlayer:GetAttribute("FSMState") == "Dashing" then
-			if LocalPlayer.Character then
-				DashBumpGizmoController.DrawDashGizmo(LocalPlayer.Character)
-			end
+	-- Listen for local player dash trigger via unified PlayerFSM event
+	PlayerFSM.OnStateChanged(LocalPlayer, function(oldState, newState)
+		if newState == "Dashing" and LocalPlayer.Character then
+			DashBumpGizmoController.DrawDashGizmo(LocalPlayer.Character)
 		end
 	end)
 

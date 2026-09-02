@@ -28,6 +28,7 @@ local REMOTE_NAMES = {
 	"DashBumpHit",
 	"BankCoins",
 	"TriggerRagdoll",
+	"StatePayload",
 	"UpdateHUD",
 	"PlayVFX",
 	"PlaySound",

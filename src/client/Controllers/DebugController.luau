@@ -57,11 +57,9 @@ function DebugController.Init()
 		DebugGuiModule.setEntry("Combat", "HitboxStatus", "3D Hitbox Wireframes:", cfg.AlwaysShowHitboxes and "VISIBLE" or "HIDDEN")
 	end)
 
-	-- 100% EVENT-DRIVEN: Listen to FSMState attribute signal changes (Zero loops, Zero RenderStepped)
-	LocalPlayer.AttributeChanged:Connect(function(attr)
-		if attr == "FSMState" then
-			updateStateEntry()
-		end
+	-- 100% EVENT-DRIVEN: Listen to unified PlayerFSM state transition events
+	PlayerFSM.OnStateChanged(LocalPlayer, function(oldState, newState)
+		updateStateEntry()
 	end)
 
 	print("[DebugController] Minimal 100% event-driven FSM State & Hitbox Debug Controller initialized successfully!")

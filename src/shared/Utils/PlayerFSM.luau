@@ -24,13 +24,16 @@ local DashingState = require(States:WaitForChild("DashingState"))
 local RagdollState = require(States:WaitForChild("RagdollState"))
 local SafeZoneState = require(States:WaitForChild("SafeZoneState"))
 
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
 local ATTRIBUTE_NAME = "FSMState"
 local PlayerMachines: { [Player]: StateMachine.StateMachineInstance } = {}
 local PlayerContexts: { [Player]: StateMachine.StateContext } = {}
 
 local PlayerFSM = {}
 
-local function getOrCreateContext(player: Player): StateMachine.StateContext
+local function getOrCreateContext(player: Player, payload: { [string]: any }?): StateMachine.StateContext
 	local context = PlayerContexts[player]
 	local char = player.Character
 	if not context or context.character ~= char then
@@ -39,12 +42,16 @@ local function getOrCreateContext(player: Player): StateMachine.StateContext
 			character = char,
 			humanoid = char and char:FindFirstChildOfClass("Humanoid"),
 			rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart,
+			payload = payload,
 		}
 		PlayerContexts[player] = context
 	else
 		context.character = char
 		context.humanoid = char and char:FindFirstChildOfClass("Humanoid")
 		context.rootPart = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
+		if payload ~= nil then
+			context.payload = payload
+		end
 	end
 	return context
 end
@@ -94,31 +101,85 @@ local function getOrCreateMachine(player: Player): StateMachine.StateMachineInst
 	return machine
 end
 
+-- Client: Listen to generic Remote Payload events for state transitions with dynamic data
+if RunService:IsClient() then
+	task.spawn(function()
+		local payloadRemote = Remotes.Get("StatePayload")
+		if payloadRemote then
+			payloadRemote.OnClientEvent:Connect(function(stateName: string, payload: { [string]: any }?)
+				local localPlayer = Players.LocalPlayer
+				if not localPlayer then return end
+				local context = getOrCreateContext(localPlayer, payload)
+				local machine = getOrCreateMachine(localPlayer)
+
+				if machine:getCurrentStateName() == stateName then
+					-- If already in target state, re-evaluate launch impulses or payload properties directly
+					if payload and payload.launchVector and context.rootPart then
+						context.rootPart.AssemblyLinearVelocity = payload.launchVector
+					end
+				else
+					machine:setState(stateName, context)
+				end
+			end)
+		end
+	end)
+end
+
 -- Get Current Player State Name
 function PlayerFSM.GetState(player: Player): string
+	local machine = getOrCreateMachine(player)
+	local current = machine:getCurrentStateName()
+	if current then
+		return current
+	end
+
 	local attrState = player:GetAttribute(ATTRIBUTE_NAME)
 	if attrState then
 		return attrState
 	end
 
+	return "Normal"
+end
+
+-- Subscribe callback listener to FSM state transition events
+function PlayerFSM.OnStateChanged(player: Player, callback: (oldState: string?, newState: string?) -> ()): () -> ()
 	local machine = getOrCreateMachine(player)
-	return machine:getCurrentStateName() or "Normal"
+	return machine:onStateChanged(callback)
 end
 
 -- Set Player State with Lifecycle Validation & Network Replication
-function PlayerFSM.SetState(player: Player, newStateName: string): boolean
+function PlayerFSM.SetState(player: Player, newStateName: string, payload: { [string]: any }?): boolean
 	log(string.format("SetState TargetState: %s | Env: %s", newStateName, RunService:IsServer() and "SERVER" or "CLIENT"))
 
-	-- Server: Only update replicated network attribute
+	local context = getOrCreateContext(player, payload)
+
+	-- Server: Only update replicated network attribute and transmit payload remote if applicable
 	if RunService:IsServer() then
 		player:SetAttribute(ATTRIBUTE_NAME, newStateName)
 		log(string.format("Server set attribute %s = %s", ATTRIBUTE_NAME, newStateName))
+
+		-- 1. Transmit payload over network if present (generic for any state!)
+		if payload then
+			local payloadRemote = Remotes.Get("StatePayload")
+			if payloadRemote then
+				payloadRemote:FireClient(player, newStateName, payload)
+			end
+		end
+
+		-- 2. Schedule auto-recovery timer if duration is specified (generic for any timed state!)
+		if payload and payload.duration and payload.duration > 0 then
+			local duration = payload.duration
+			task.delay(duration, function()
+				if player and player.Parent and player:GetAttribute(ATTRIBUTE_NAME) == newStateName then
+					PlayerFSM.SetState(player, "Normal")
+				end
+			end)
+		end
 		return true
 	end
 
 	-- Client: Execute local state machine lifecycle hooks (enter, exit, update)
 	local machine = getOrCreateMachine(player)
-	local context = getOrCreateContext(player)
 
 	return machine:setState(newStateName, context)
 end

@@ -44,30 +44,24 @@ function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Mode
 
 	if victimPlayer then
 		if not PlayerFSM.CanBeBumped(victimPlayer) then return end
-		PlayerFSM.SetState(victimPlayer, "Ragdolled")
-		RagdollModule.SetPlatformStand(victimModel, true, true)
+		PlayerFSM.SetState(victimPlayer, "Ragdolled", {
+			duration = Config.RAGDOLL_DURATION,
+			launchVector = launchVector,
+		})
 		LootExplosion.ScatterCoins(victimPlayer)
-
-		local ragdollRemote = Remotes.Get("TriggerRagdoll")
-		if ragdollRemote then
-			ragdollRemote:FireClient(victimPlayer, Config.RAGDOLL_DURATION, launchVector)
-		end
-
-		task.delay(Config.RAGDOLL_DURATION or 2.5, function()
-			if victimModel and victimModel.Parent then
-				RagdollModule.SetPlatformStand(victimModel, false, false)
-			end
-			pcall(function()
-				PlayerFSM.SetState(victimPlayer, "Normal")
-			end)
-		end)
 	else
 		-- Direct physics launch for NPC Test Target Dummy
+		RagdollModule.SetPlatformStand(victimModel, true, true)
 		victimHrp.AssemblyLinearVelocity = launchVector
 		local torso = victimModel:FindFirstChild("UpperTorso") :: Part
 		if torso then
 			torso.AssemblyLinearVelocity = launchVector + Vector3.new(math.random(-10, 10), 10, math.random(-10, 10))
 		end
+		task.delay(Config.RAGDOLL_DURATION or 2.5, function()
+			if victimModel and victimModel.Parent then
+				RagdollModule.SetPlatformStand(victimModel, false, false)
+			end
+		end)
 	end
 
 	-- Fire client hit visualizer & 3D sound event to all clients

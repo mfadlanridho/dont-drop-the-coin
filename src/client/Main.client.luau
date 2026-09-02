@@ -31,7 +31,6 @@ local CONTROLLER_ORDER = {
 	"StackVisualizer",
 	"InputController",
 	"DashBumpGizmoController",
-	"RagdollClientController",
 	"DebugController",
 }
 
