@@ -1,207 +1,73 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+--!nonstrict
+--[[
+    GuardAIService.luau
+    Server orchestrator that binds all Guard and Drone NPC AI models in Workspace to the universal GuardAI framework.
+    Location: src/server/Services/GuardAIService.luau
+--]]
 
-local Conveyor = {}
-Conveyor.__index = Conveyor
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
-function Conveyor.new(part, settings)
-	assert(part and part:IsA("BasePart"), "[Conveyor] Invalid conveyor part")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Logger = require(Packages:WaitForChild("LoggerModule"))
+local GuardAI = require(Shared:WaitForChild("AI"):WaitForChild("GuardAI"))
 
-	settings = settings or {}
+local log = Logger.create("Combat")
 
-	local self = setmetatable({}, Conveyor)
+local Services = script.Parent
+local CombatServer = require(Services:WaitForChild("CombatServer"))
 
-	self.Part = part
-	self.Speed = settings.Speed or 12
-	self.Enabled = true
-	self.Debug = settings.Debug ~= false
-	self.Connection = nil
-	self.Constraints = {}
+local GuardAIService = {}
+local activeGuards: { [Model]: any } = {}
 
-	part.CanCollide = true
-	part.CanTouch = true
+-- Bind an NPC Model to GuardAI
+local function bindGuardModel(model: Model)
+	if activeGuards[model] then return end
+	if not model:IsA("Model") then return end
 
-	if self.Debug then
-		print(
-			"[Conveyor] Started:",
-			part:GetFullName(),
-			"Speed:",
-			self.Speed,
-			"Direction:",
-			part.CFrame.LookVector
-		)
+	activeGuards[model] = GuardAI.new(model, {
+		onAttackHit = function(victimModel: Model)
+			log(string.format("[GuardAIService] %s struck %s!", model.Name, victimModel.Name))
+			CombatServer.BumpVictimModel(nil, victimModel)
+		end,
+	})
+
+	log(string.format("[GuardAIService] Bound GuardAI to model %s", model.Name))
+end
+
+-- Initialize Service & Listen to Tags/Folders
+function GuardAIService.Init()
+	-- Tag: GuardNPC
+	for _, instance in ipairs(CollectionService:GetTagged("GuardNPC")) do
+		if instance:IsA("Model") then
+			bindGuardModel(instance)
+		end
 	end
-
-	self.Connection = RunService.Heartbeat:Connect(function()
-		self:Update()
+	CollectionService:GetInstanceAddedSignal("GuardNPC"):Connect(function(instance)
+		if instance:IsA("Model") then
+			bindGuardModel(instance)
+		end
 	end)
 
-	return self
-end
-
-function Conveyor:Update()
-	if not self.Enabled or not self.Part or not self.Part.Parent then
-		return
-	end
-
-	local overlapParams = OverlapParams.new()
-	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-	overlapParams.FilterDescendantsInstances = {self.Part}
-
-	local detectionSize = Vector3.new(
-		self.Part.Size.X,
-		2.5,
-		self.Part.Size.Z
-	)
-
-	local detectionCFrame = self.Part.CFrame + Vector3.new(0, 1.25, 0)
-
-	local parts = workspace:GetPartBoundsInBox(
-		detectionCFrame,
-		detectionSize,
-		overlapParams
-	)
-
-	local characters = {}
-
-	for _, touchingPart in parts do
-		local character = touchingPart:FindFirstAncestorOfClass("Model")
-
-		if character and not characters[character] then
-			characters[character] = true
-
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			local rootPart = character:FindFirstChild("HumanoidRootPart")
-
-			if humanoid and rootPart and humanoid.Health > 0 then
-				local player = Players:GetPlayerFromCharacter(character)
-
-				if player and self:IsStandingOnConveyor(character, rootPart) then
-					self:ApplyConveyor(rootPart)
-
-					if self.Debug then
-						print("[Conveyor] Moving:", player.Name)
-					end
-				end
+	-- Scan Workspace.Hazards for platform models containing guard models
+	local hazardsFolder = Workspace:FindFirstChild("Hazards")
+	if hazardsFolder then
+		for _, descendant in ipairs(hazardsFolder:GetDescendants()) do
+			if descendant:IsA("Model") and (descendant.Name:match("Drone") or descendant.Name:match("Guard")) then
+				bindGuardModel(descendant)
 			end
 		end
-	end
 
-	self:CleanupInactiveConstraints(characters)
-end
-
-function Conveyor:IsStandingOnConveyor(character, rootPart)
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = {character}
-
-	local result = workspace:Raycast(
-		rootPart.Position,
-		Vector3.new(0, -5, 0),
-		raycastParams
-	)
-
-	return result and result.Instance == self.Part
-end
-
-function Conveyor:ApplyConveyor(rootPart)
-	local constraint = self.Constraints[rootPart]
-
-	if not constraint then
-		local attachment = Instance.new("Attachment")
-		attachment.Name = "ConveyorAttachment"
-		attachment.Parent = rootPart
-
-		constraint = Instance.new("LinearVelocity")
-		constraint.Name = "ConveyorVelocity"
-		constraint.Attachment0 = attachment
-		constraint.RelativeTo = Enum.ActuatorRelativeTo.World
-		constraint.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-		constraint.ForceLimitsEnabled = false
-		constraint.Parent = rootPart
-
-		self.Constraints[rootPart] = {
-			Velocity = constraint,
-			Attachment = attachment,
-			LastSeen = os.clock()
-		}
-	end
-
-	local data = self.Constraints[rootPart]
-
-	data.LastSeen = os.clock()
-
-	local direction = self.Part.CFrame.LookVector
-
-	data.Velocity.VectorVelocity = Vector3.new(
-		direction.X * self.Speed,
-		0,
-		direction.Z * self.Speed
-	)
-end
-
-function Conveyor:CleanupInactiveConstraints(activeCharacters)
-	local now = os.clock()
-
-	for rootPart, data in pairs(self.Constraints) do
-		local character = rootPart.Parent
-		local stillActive = character and activeCharacters[character]
-
-		if not stillActive or now - data.LastSeen > 0.1 then
-			if data.Velocity then
-				data.Velocity:Destroy()
+		hazardsFolder.DescendantAdded:Connect(function(descendant)
+			if descendant:IsA("Model") and (descendant.Name:match("Drone") or descendant.Name:match("Guard")) then
+				bindGuardModel(descendant)
 			end
-
-			if data.Attachment then
-				data.Attachment:Destroy()
-			end
-
-			self.Constraints[rootPart] = nil
-		end
-	end
-end
-
-function Conveyor:SetSpeed(speed)
-	assert(
-		typeof(speed) == "number",
-		"[Conveyor] Speed must be a number"
-	)
-
-	self.Speed = speed
-end
-
-function Conveyor:SetEnabled(enabled)
-	assert(
-		typeof(enabled) == "boolean",
-		"[Conveyor] Enabled must be a boolean"
-	)
-
-	self.Enabled = enabled
-end
-
-function Conveyor:Destroy()
-	if self.Connection then
-		self.Connection:Disconnect()
-		self.Connection = nil
+		end)
 	end
 
-	for rootPart, data in pairs(self.Constraints) do
-		if data.Velocity then
-			data.Velocity:Destroy()
-		end
-
-		if data.Attachment then
-			data.Attachment:Destroy()
-		end
-
-		self.Constraints[rootPart] = nil
-	end
-
-	if self.Debug and self.Part then
-		print("[Conveyor] Destroyed:", self.Part:GetFullName())
-	end
-
-	self.Part = nil
+	log("[GuardAIService] Initialized Universal Guard AI Service.")
 end
 
-return Conveyor
+return GuardAIService
