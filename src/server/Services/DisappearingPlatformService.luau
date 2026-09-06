@@ -62,36 +62,17 @@ function DisappearingPlatformService.GetPlatform(instance: Instance): any?
 	return activePlatforms[instance]
 end
 
+local TAG_NAME = "Hazard_DisappearingPlatform"
+
 -- Initialize Service
 function DisappearingPlatformService.Init()
-	-- 1. Ensure Workspace.Hazards.DisappearingPlatforms folder hierarchy exists
-	local hazardsFolder = Workspace:FindFirstChild("Hazards")
-	if not hazardsFolder then
-		hazardsFolder = Instance.new("Folder")
-		hazardsFolder.Name = "Hazards"
-		hazardsFolder.Parent = Workspace
+	-- 1. Primary: 100% Streaming-Native CollectionService Enforcement
+	for _, inst in ipairs(CollectionService:GetTagged(TAG_NAME)) do
+		task.spawn(bindPlatform, inst)
 	end
 
-	local subfolder = hazardsFolder:FindFirstChild("DisappearingPlatforms")
-	if not subfolder then
-		subfolder = Instance.new("Folder")
-		subfolder.Name = "DisappearingPlatforms"
-		subfolder.Parent = hazardsFolder
-	end
-
-	-- Bind existing children & listen for runtime additions
-	for _, child in ipairs(subfolder:GetChildren()) do
-		bindPlatform(child)
-	end
-	subfolder.ChildAdded:Connect(bindPlatform)
-
-	-- 2. CollectionService Tag Support (Hazard_DisappearingPlatform)
-	for _, inst in ipairs(CollectionService:GetTagged("Hazard_DisappearingPlatform")) do
-		bindPlatform(inst)
-	end
-
-	CollectionService:GetInstanceAddedSignal("Hazard_DisappearingPlatform"):Connect(bindPlatform)
-	CollectionService:GetInstanceRemovedSignal("Hazard_DisappearingPlatform"):Connect(function(inst)
+	CollectionService:GetInstanceAddedSignal(TAG_NAME):Connect(bindPlatform)
+	CollectionService:GetInstanceRemovedSignal(TAG_NAME):Connect(function(inst)
 		local platform = activePlatforms[inst]
 		if platform then
 			if typeof(platform.destroy) == "function" then
@@ -101,7 +82,23 @@ function DisappearingPlatformService.Init()
 		end
 	end)
 
-	log("[DisappearingPlatformService] Initialized Disappearing Platform Service.")
+	-- 2. Server Convenience: Auto-tag any part placed into Workspace.Hazards.DisappearingPlatforms
+	local hazardsFolder = Workspace:FindFirstChild("Hazards")
+	local subfolder = hazardsFolder and hazardsFolder:FindFirstChild("DisappearingPlatforms")
+	if subfolder then
+		local function autoTag(child: Instance)
+			if not CollectionService:HasTag(child, TAG_NAME) then
+				CollectionService:AddTag(child, TAG_NAME)
+			end
+		end
+
+		for _, child in ipairs(subfolder:GetChildren()) do
+			autoTag(child)
+		end
+		subfolder.ChildAdded:Connect(autoTag)
+	end
+
+	log("[DisappearingPlatformService] Initialized streaming-native CollectionService orchestrator.")
 end
 
 return DisappearingPlatformService

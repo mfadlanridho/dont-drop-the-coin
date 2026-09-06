@@ -210,26 +210,16 @@ local function bindClientPlatform(instance: Instance)
 	applyState(binding, initialState :: string)
 end
 
+local TAG_NAME = "Hazard_DisappearingPlatform"
+
 function DisappearingPlatformController.Init()
-	-- 1. Scan Workspace.Hazards.DisappearingPlatforms folder
-	local hazardsFolder = Workspace:WaitForChild("Hazards", 5)
-	if hazardsFolder then
-		local dpFolder = hazardsFolder:WaitForChild("DisappearingPlatforms", 5)
-		if dpFolder then
-			for _, child in ipairs(dpFolder:GetChildren()) do
-				bindClientPlatform(child)
-			end
-			dpFolder.ChildAdded:Connect(bindClientPlatform)
-		end
+	-- 100% Streaming-Native: Driven purely through CollectionService
+	for _, inst in ipairs(CollectionService:GetTagged(TAG_NAME)) do
+		task.spawn(bindClientPlatform, inst)
 	end
+	CollectionService:GetInstanceAddedSignal(TAG_NAME):Connect(bindClientPlatform)
 
-	-- 2. Tag Listeners
-	for _, inst in ipairs(CollectionService:GetTagged("Hazard_DisappearingPlatform")) do
-		bindClientPlatform(inst)
-	end
-	CollectionService:GetInstanceAddedSignal("Hazard_DisappearingPlatform"):Connect(bindClientPlatform)
-
-	log("[DisappearingPlatformController] Initialized client deterministic collision & visual controller.")
+	log("[DisappearingPlatformController] Initialized streaming-native CollectionService controller.")
 end
 
 return DisappearingPlatformController
