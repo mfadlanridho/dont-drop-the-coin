@@ -1,260 +1,135 @@
 --!nonstrict
+--[[
+    DataStoreManager.luau
+    Handles player session data loading, profile reconciliation, auto-saving, and dupe-proof persistence using ProfileStore.
+    Location: src/server/Services/DataStoreManager.luau (Syncs to ServerScriptService.Server.Services.DataStoreManager)
+--]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
-local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 
 local Signal = require(ReplicatedStorage.Packages.SignalModule)
+
+local ServerPackages = ServerScriptService:WaitForChild("ServerPackages")
+local ProfileStore = require(ServerPackages:WaitForChild("ProfileStore") :: ModuleScript)
+
+local MAX_COINS = 2_147_483_647
+local MAX_TOTAL_BANKED = 2_147_483_647
+
+local PlayerProfileStore = ProfileStore.New(
+	Config.DATASTORE_KEY,
+	Config.DEFAULT_DATA
+)
+
+local Profiles = {}
+local loadingPlayers = {}
 
 local DataStoreManager = {}
 DataStoreManager.PlayerLoaded = Signal.new()
 
-local STORE_NAME = "PlayerData_V2"
-local AUTOSAVE_INTERVAL = 60
-local SAVE_RETRIES = 5
-local RETRY_BASE_DELAY = 2
-local SESSION_TIMEOUT = 180
-local MAX_COINS = 2_147_483_647
-local MAX_TOTAL_BANKED = 2_147_483_647
-
-local Store = DataStoreService:GetDataStore(STORE_NAME)
-
-local DEFAULT_DATA = {
-	DataVersion = 2,
-	Coins = 0,
-	TotalBanked = 0,
-}
-
-local sessions = {}
-local shuttingDown = false
-
-local function deepCopy(value)
-	if type(value) ~= "table" then
-		return value
+local function getProfile(player: any)
+	if not player then
+		return nil
 	end
 
-	local copy = {}
-
-	for key, child in pairs(value) do
-		copy[key] = deepCopy(child)
+	local profile = Profiles[player]
+	if profile then
+		return profile
 	end
 
-	return copy
+	if typeof(player) == "table" and player.UserId then
+		return Profiles[player.UserId]
+	end
+
+	return nil
 end
 
-local function reconcile(data, defaults)
-	if type(data) ~= "table" then
-		data = {}
+local function isSessionValid(profile: any): boolean
+	return profile ~= nil and profile.Data ~= nil
+end
+
+-- Load Profile on Player Join
+function DataStoreManager.LoadPlayer(player: any)
+	if not player or not player.UserId then
+		return false, "InvalidPlayer"
 	end
 
-	for key, defaultValue in pairs(defaults) do
-		if data[key] == nil then
-			data[key] = deepCopy(defaultValue)
-		elseif type(defaultValue) == "table" then
-			data[key] = reconcile(data[key], defaultValue)
+	local existingProfile = getProfile(player)
+	if existingProfile and existingProfile.Data then
+		return true, existingProfile.Data
+	end
+
+	-- Handle concurrent load calls for the same player
+	if loadingPlayers[player] then
+		while loadingPlayers[player] do
+			task.wait(0.1)
+		end
+		local loadedProfile = getProfile(player)
+		if loadedProfile and loadedProfile.Data then
+			return true, loadedProfile.Data
+		else
+			return false, "LoadFailedInOtherThread"
 		end
 	end
 
-	return data
-end
+	loadingPlayers[player] = true
 
-local function sanitize(data)
-	data = reconcile(data, DEFAULT_DATA)
+	local profileKey = "Player_" .. tostring(player.UserId)
+	local profile = PlayerProfileStore:StartSessionAsync(profileKey, {
+		Steal = true,
+	})
 
-	if type(data.Coins) ~= "number" or data.Coins ~= data.Coins then
-		data.Coins = 0
-	end
+	loadingPlayers[player] = nil
 
-	if type(data.TotalBanked) ~= "number" or data.TotalBanked ~= data.TotalBanked then
-		data.TotalBanked = 0
-	end
+	if profile ~= nil then
+		profile:AddUserId(player.UserId)
+		profile:Reconcile()
 
-	data.Coins = math.clamp(math.floor(data.Coins), 0, MAX_COINS)
-	data.TotalBanked = math.clamp(math.floor(data.TotalBanked), 0, MAX_TOTAL_BANKED)
+		local isRealPlayer = typeof(player) == "Instance" and player:IsA("Player")
 
-	if type(data.DataVersion) ~= "number" then
-		data.DataVersion = DEFAULT_DATA.DataVersion
-	end
-
-	return data
-end
-
-local function migrate(data)
-	data = sanitize(data)
-
-	if data.DataVersion < 2 then
-		data.DataVersion = 2
-	end
-
-	return data
-end
-
-local function getKey(userId)
-	return "Player_" .. tostring(userId)
-end
-
-local function isSessionValid(session)
-	return session ~= nil and session.Data ~= nil and session.LockId ~= nil
-end
-
-local function waitForRetry(attempt)
-	task.wait(RETRY_BASE_DELAY * (2 ^ (attempt - 1)))
-end
-
-local function executeWithRetries(callback)
-	local lastError
-
-	for attempt = 1, SAVE_RETRIES do
-		local success, result = pcall(callback)
-
-		if success then
-			return true, result
-		end
-
-		lastError = result
-
-		if attempt < SAVE_RETRIES then
-			waitForRetry(attempt)
-		end
-	end
-
-	return false, lastError
-end
-
-local function acquireSession(player)
-	local key = getKey(player.UserId)
-	local lockId = game.JobId .. ":" .. tostring(os.time())
-
-	local success, result = executeWithRetries(function()
-		return Store:UpdateAsync(key, function(oldData)
-			oldData = migrate(oldData)
-
-			local existingLock = oldData.__SessionLock
-			local existingTime = oldData.__SessionTime or 0
-			local currentTime = os.time()
-
-			if existingLock and existingLock ~= lockId then
-				if currentTime - existingTime < SESSION_TIMEOUT then
-					return nil
-				end
+		profile.OnSessionEnd:Connect(function()
+			Profiles[player] = nil
+			if typeof(player.UserId) == "number" then
+				Profiles[player.UserId] = nil
 			end
-
-			oldData.__SessionLock = lockId
-			oldData.__SessionTime = currentTime
-
-			return oldData
+			if isRealPlayer and player:IsDescendantOf(Players) then
+				player:Kick("Your session ended or was logged into from another device.")
+			end
 		end)
-	end)
 
-	if not success then
-		return false, result
-	end
-
-	if result == nil then
-		return false, "SessionLocked"
-	end
-
-	result = migrate(result)
-
-	result.__SessionLock = nil
-	result.__SessionTime = nil
-
-	local session = {
-		Player = player,
-		Data = result,
-		LockId = lockId,
-		Dirty = false,
-		Saving = false,
-		Loaded = true,
-	}
-
-	sessions[player.UserId] = session
-
-	return true, session
-end
-
-local function saveSession(session, release)
-	if not isSessionValid(session) then
-		return false, "InvalidSession"
-	end
-
-	if session.Saving then
-		return false, "AlreadySaving"
-	end
-
-	session.Saving = true
-
-	local player = session.Player
-	local key = getKey(player.UserId)
-	local lockId = session.LockId
-	local dataToSave = deepCopy(session.Data)
-
-	dataToSave = migrate(dataToSave)
-
-	dataToSave.__SessionLock = lockId
-	dataToSave.__SessionTime = os.time()
-
-	local success, result = executeWithRetries(function()
-		return Store:UpdateAsync(key, function(oldData)
-			oldData = migrate(oldData)
-
-			local existingLock = oldData.__SessionLock
-
-			if existingLock ~= lockId then
-				return nil
+		if not isRealPlayer or player:IsDescendantOf(Players) then
+			Profiles[player] = profile
+			if typeof(player.UserId) == "number" then
+				Profiles[player.UserId] = profile
 			end
 
-			if release then
-				dataToSave.__SessionLock = nil
-				dataToSave.__SessionTime = nil
-			else
-				dataToSave.__SessionTime = os.time()
-			end
+			print(string.format("[DataStoreManager] Profile loaded & active for %s (UserId: %s)", tostring(player.Name), tostring(player.UserId)))
+			DataStoreManager.PlayerLoaded:Fire(player, profile.Data)
 
-			return dataToSave
-		end)
-	end)
-
-	session.Saving = false
-
-	if not success then
-		return false, result
+			return true, profile.Data
+		else
+			profile:EndSession()
+			return false, "PlayerLeftDuringLoad"
+		end
+	else
+		local isRealPlayer = typeof(player) == "Instance" and player:IsA("Player")
+		if isRealPlayer and player:IsDescendantOf(Players) then
+			player:Kick("Could not load your player data. Please rejoin.")
+		end
+		warn(string.format("[DataStoreManager] Could not start ProfileStore session for %s (UserId: %s)", tostring(player.Name), tostring(player.UserId)))
+		return false, "SessionLoadFailed"
 	end
-
-	if result == nil then
-		return false, "SessionOwnershipLost"
-	end
-
-	session.Dirty = false
-
-	if release then
-		session.Loaded = false
-	end
-
-	return true
 end
 
-function DataStoreManager.LoadPlayer(player)
-	if sessions[player.UserId] then
-		return true, sessions[player.UserId].Data
-	end
-
-	local success, result = acquireSession(player)
-
-	if not success then
-		warn("[DataStoreManager] Failed to load " .. player.Name .. ": " .. tostring(result))
-		return false, result
-	end
-
-	print("[DataStoreManager] Loaded data for " .. player.Name)
-	DataStoreManager.PlayerLoaded:Fire(player, result.Data)
-
-	return true, result.Data
-end
-
+-- Listen for Player Profile Load (Supports both already-loaded and pending players)
 function DataStoreManager.OnPlayerLoaded(player: Player, callback: (data: any) -> ())
-	if not player.Parent then return end
+	if not player then
+		return
+	end
 
 	if DataStoreManager.IsLoaded(player) then
 		task.spawn(callback, DataStoreManager.GetData(player))
@@ -278,115 +153,95 @@ function DataStoreManager.OnPlayerLoaded(player: Player, callback: (data: any) -
 	conn = DataStoreManager.PlayerLoaded:Connect(function(loadedPlayer, data)
 		if loadedPlayer == player then
 			cleanup()
-			if player.Parent then
+			if typeof(player) ~= "Instance" or player.Parent then
 				callback(data)
 			end
 		end
 	end)
 
-	removingConn = Players.PlayerRemoving:Connect(function(leavingPlayer)
-		if leavingPlayer == player then
-			cleanup()
-		end
-	end)
-end
-
-function DataStoreManager.GetData(player)
-	local session = sessions[player.UserId]
-
-	if not session or not session.Loaded then
-		return nil
+	if typeof(player) == "Instance" and player:IsA("Player") then
+		removingConn = Players.PlayerRemoving:Connect(function(leavingPlayer)
+			if leavingPlayer == player then
+				cleanup()
+			end
+		end)
 	end
-
-	return session.Data
 end
 
-function DataStoreManager.IsLoaded(player)
-	local session = sessions[player.UserId]
-
-	return session ~= nil and session.Loaded == true
+-- Public API: Check if Player Profile is Loaded
+function DataStoreManager.IsLoaded(player: any): boolean
+	local profile = getProfile(player)
+	return profile ~= nil and profile.Data ~= nil
 end
 
-function DataStoreManager.MarkDirty(player)
-	local session = sessions[player.UserId]
+-- Public API: Mark session dirty (No-op in ProfileStore as data is directly synced, kept for backward compatibility)
+function DataStoreManager.MarkDirty(player: any): boolean
+	return DataStoreManager.IsLoaded(player)
+end
 
-	if not session or not session.Loaded then
-		return false
+-- Public API: Get Active Profile Data
+function DataStoreManager.GetData(player: any)
+	local profile = getProfile(player)
+	if profile ~= nil then
+		return profile.Data
 	end
-
-	session.Dirty = true
-
-	return true
+	return nil
 end
 
-function DataStoreManager.AddBankedCash(player, amount)
-	if type(amount) ~= "number" then
-		return false
-	end
-
-	if amount <= 0 or amount ~= amount then
+-- Public API: Add Permanent Banked Cash
+function DataStoreManager.AddBankedCash(player: any, amount: number): boolean
+	if type(amount) ~= "number" or amount <= 0 or amount ~= amount then
 		return false
 	end
 
 	amount = math.floor(amount)
 
-	local session = sessions[player.UserId]
-
-	if not isSessionValid(session) then
+	local profile = getProfile(player)
+	if not isSessionValid(profile) then
 		return false
 	end
 
-	local data = session.Data
+	local data = profile.Data
+	local currentCoins = data.Coins or 0
+	local currentTotalBanked = data.TotalBanked or 0
 
-	if data.Coins + amount > MAX_COINS then
+	if currentCoins + amount > MAX_COINS or currentTotalBanked + amount > MAX_TOTAL_BANKED then
 		return false
 	end
 
-	if data.TotalBanked + amount > MAX_TOTAL_BANKED then
-		return false
-	end
-
-	data.Coins += amount
-	data.TotalBanked += amount
-
-	session.Dirty = true
+	data.Coins = currentCoins + amount
+	data.TotalBanked = currentTotalBanked + amount
 
 	return true
 end
 
-function DataStoreManager.RemoveCoins(player, amount)
-	if type(amount) ~= "number" then
-		return false
-	end
-
-	if amount <= 0 or amount ~= amount then
+-- Public API: Remove Coins from Wallet
+function DataStoreManager.RemoveCoins(player: any, amount: number): boolean
+	if type(amount) ~= "number" or amount <= 0 or amount ~= amount then
 		return false
 	end
 
 	amount = math.floor(amount)
 
-	local session = sessions[player.UserId]
-
-	if not isSessionValid(session) then
+	local profile = getProfile(player)
+	if not isSessionValid(profile) then
 		return false
 	end
 
-	if session.Data.Coins < amount then
+	local data = profile.Data
+	local currentCoins = data.Coins or 0
+
+	if currentCoins < amount then
 		return false
 	end
 
-	session.Data.Coins -= amount
-	session.Dirty = true
-
+	data.Coins = currentCoins - amount
 	return true
 end
 
-function DataStoreManager.SetCoins(player, amount)
-	if type(amount) ~= "number" then
-		return false
-	end
-
-	if amount < 0 or amount ~= amount then
+-- Public API: Explicitly Set Coins
+function DataStoreManager.SetCoins(player: any, amount: number): boolean
+	if type(amount) ~= "number" or amount < 0 or amount ~= amount then
 		return false
 	end
 
@@ -396,142 +251,95 @@ function DataStoreManager.SetCoins(player, amount)
 		return false
 	end
 
-	local session = sessions[player.UserId]
-
-	if not isSessionValid(session) then
+	local profile = getProfile(player)
+	if not isSessionValid(profile) then
 		return false
 	end
 
-	session.Data.Coins = amount
-	session.Dirty = true
-
+	profile.Data.Coins = amount
 	return true
 end
 
-function DataStoreManager.GetCoins(player)
+-- Public API: Get Current Coins
+function DataStoreManager.GetCoins(player: any): number?
 	local data = DataStoreManager.GetData(player)
-
 	if not data then
 		return nil
 	end
-
 	return data.Coins
 end
 
-function DataStoreManager.GetTotalBanked(player)
+-- Public API: Get Total Banked Lifetime Coins
+function DataStoreManager.GetTotalBanked(player: any): number?
 	local data = DataStoreManager.GetData(player)
-
 	if not data then
 		return nil
 	end
-
 	return data.TotalBanked
 end
 
-function DataStoreManager.SavePlayer(player, release)
-	local session = sessions[player.UserId]
-
-	if not session then
+-- Save / Release Single Player Profile
+function DataStoreManager.SavePlayer(player: any, release: boolean?)
+	local profile = getProfile(player)
+	if not profile then
 		return false, "NoSession"
 	end
 
-	local success, result = saveSession(session, release == true)
-
-	if release then
-		sessions[player.UserId] = nil
-	end
-
-	if not success then
-		warn("[DataStoreManager] Failed to save " .. player.Name .. ": " .. tostring(result))
-	end
-
-	return success, result
-end
-
-function DataStoreManager.SaveAll()
-	local players = Players:GetPlayers()
-	local remaining = #players
-
-	if remaining == 0 then
+	if release == true then
+		profile:EndSession()
+		Profiles[player] = nil
+		if typeof(player.UserId) == "number" then
+			Profiles[player.UserId] = nil
+		end
+		return true
+	else
+		profile:Save()
 		return true
 	end
-
-	local completed = 0
-
-	for _, player in ipairs(players) do
-		task.spawn(function()
-			DataStoreManager.SavePlayer(player, true)
-			completed += 1
-		end)
-	end
-
-	local startTime = os.clock()
-
-	while completed < remaining and os.clock() - startTime < 25 do
-		task.wait(0.1)
-	end
-
-	return completed == remaining
 end
 
-function DataStoreManager.ReleasePlayer(player)
+-- Release Single Player Profile
+function DataStoreManager.ReleasePlayer(player: any)
 	return DataStoreManager.SavePlayer(player, true)
 end
 
-task.spawn(function()
-	while not shuttingDown do
-		task.wait(AUTOSAVE_INTERVAL)
-
-		if shuttingDown then
-			break
-		end
-
-		for _, session in pairs(sessions) do
-			if session.Loaded and session.Dirty and not session.Saving then
-				task.spawn(function()
-					local success, result = saveSession(session, false)
-
-					if not success then
-						warn("[DataStoreManager] Autosave failed for " .. session.Player.Name .. ": " .. tostring(result))
-					end
-				end)
-			end
+-- Save All Active Sessions (Server Shutdown / BindToClose)
+function DataStoreManager.SaveAll(): boolean
+	local activeProfiles = {}
+	for key, profile in pairs(Profiles) do
+		if typeof(key) == "Instance" or typeof(key) == "table" then
+			table.insert(activeProfiles, profile)
 		end
 	end
-end)
 
-Players.PlayerRemoving:Connect(function(player)
-	DataStoreManager.ReleasePlayer(player)
-end)
-
-game:BindToClose(function()
-	shuttingDown = true
-
-	local players = Players:GetPlayers()
-
-	for _, player in ipairs(players) do
-		task.spawn(function()
-			DataStoreManager.SavePlayer(player, true)
+	for _, profile in ipairs(activeProfiles) do
+		pcall(function()
+			profile:EndSession()
 		end)
 	end
 
-	local startTime = os.clock()
+	table.clear(Profiles)
+	return true
+end
 
-	while os.clock() - startTime < 25 do
-		local activeSessions = 0
+-- Initialize Listeners
+function DataStoreManager.Init()
+	Players.PlayerAdded:Connect(function(player)
+		task.spawn(DataStoreManager.LoadPlayer, player)
+	end)
 
-		for _, session in pairs(sessions) do
-			if session.Saving then
-				activeSessions += 1
-			end
-		end
+	Players.PlayerRemoving:Connect(function(player)
+		DataStoreManager.ReleasePlayer(player)
+	end)
 
-		if activeSessions == 0 then
-			break
-		end
-
-		task.wait(0.1)
+	for _, player in ipairs(Players:GetPlayers()) do
+		task.spawn(DataStoreManager.LoadPlayer, player)
 	end
-end)
+
+	game:BindToClose(function()
+		print("[DataStoreManager] Server shutting down, releasing all ProfileStore sessions...")
+		DataStoreManager.SaveAll()
+	end)
+end
 
 return DataStoreManager
