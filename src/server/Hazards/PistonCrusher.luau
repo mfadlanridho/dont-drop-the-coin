@@ -7,6 +7,10 @@
     Emits lifecycle signals via SignalModule (Slammed, HitVictim).
     Location: src/server/Hazards/PistonCrusher.luau
 --]]
+--[[
+	This implementation requires more review. 
+	I won't call it production-ready yet.
+--]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
