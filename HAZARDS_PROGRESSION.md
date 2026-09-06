@@ -9,15 +9,15 @@
 
 | Phase | Hazard Name | Target Zone | Complexity | Status |
 | :---: | :--- | :--- | :---: | :---: |
-| **Phase 1** | **`DisappearingPlatform`** | Zone 3 (*The Void Lunatic*) | Low (Static State Cycle) | 🟢 **CODE COMPLETE (TESTING)** |
-| **Phase 2** | **`PistonCrusher`** | Zone 2 (*The Chaos Factory*) | Medium (1-Axis Motion + Squash) | ⚪ PENDING |
+| **Phase 1** | **`DisappearingPlatform`** | Zone 3 (*The Void Lunatic*) | Low (Static State Cycle) | ✅ **100% COMPLETE** |
+| **Phase 2** | **`PistonCrusher`** | Zone 2 (*The Chaos Factory*) | Medium (1-Axis Motion + Squash) | 🟡 **UP NEXT** |
 | **Phase 3** | **`PendulumObstacle`** | Zone 2 (*The Chaos Factory*) | High (Harmonic Rotation + Fling) | ⚪ PENDING |
 
 ---
 
 ## 📋 DETAILED PHASE BREAKDOWN
 
-### 🟢 PHASE 1: Disappearing Platform (`DisappearingPlatform`)
+### ✅ PHASE 1: Disappearing Platform (`DisappearingPlatform`)
 > **Focus:** Non-moving interactive floor hazard. Player steps on platform $\rightarrow$ warning phase $\rightarrow$ collision drops $\rightarrow$ player falls $\rightarrow$ platform regenerates.
 
 #### Tasks:
@@ -25,28 +25,33 @@
   - [x] Implement state machine: `Stable` $\rightarrow$ `Warning` $\rightarrow$ `Vanished` $\rightarrow$ `Regenerate`.
   - [x] Integrate `SignalModule` pub/sub events (`Triggered`, `Vanished`, `Regenerated`).
   - [x] Support both single `BasePart` and multi-part `Model` assemblies.
-  - [x] Cache original colors, transparencies, and collidability per part.
-  - [x] Debounce trigger to prevent re-activation while cycle is active.
-- [x] **1.2 Visual & Attribute Tuning**
-  - [x] Warning phase: Smooth color lerp to `WarningColor` (default `Color3.fromRGB(255, 60, 60)`) + slight opacity shift.
-  - [x] Disappear phase: Set `CanCollide = false` and `Transparency = 1`.
-  - [x] Reappear phase: Restore collision and original appearance.
-  - [x] Expose configurable attributes on parts/models:
+  - [x] Replicate state via `PlatformState` Attribute (`"Stable"`, `"Warning"`, `"Vanished"`).
+  - [x] Add 0.5s post-regeneration grace debounce to prevent immediate re-triggering.
+- [x] **1.2 Visual & Attribute Tuning (`Config.luau` Integration)**
+  - [x] Centralize defaults in `src/shared/Config/init.luau` (`Config.HAZARDS.DISAPPEARING_PLATFORM`).
+  - [x] Expose configurable attributes on parts/models with Config fallback:
     - `WarningDelay` (default `0.85s`)
     - `RespawnDelay` (default `2.5s`)
     - `WarningColor` (default `255, 60, 60`)
-- [x] **1.3 Service Orchestration (`DisappearingPlatformService.luau`)**
-  - [x] Create dedicated `DisappearingPlatformService.luau` in `src/server/Services/`.
+- [x] **1.3 Dedicated Service Orchestration (`DisappearingPlatformService.luau`)**
+  - [x] Create decoupled `DisappearingPlatformService.luau` in `src/server/Services/`.
   - [x] Scan and monitor `Workspace.Hazards.DisappearingPlatforms`.
   - [x] Listen to CollectionService tag `Hazard_DisappearingPlatform`.
   - [x] Register `DisappearingPlatformService` in `Main.server.luau`.
-- [ ] **1.4 Verification & Playtesting**
-  - [ ] Place test platform in Studio.
-  - [ ] Walk across platform: verify warning flash, drop, and respawn feel responsive and fair.
+- [x] **1.4 Client-Side Deterministic Collision (`DisappearingPlatformController.luau`)**
+  - [x] Listen to replicated `PlatformState` on client.
+  - [x] Smooth local 60+ FPS color lerp with explicit tween cancellation (kills "stuck in red" bug).
+  - [x] 0ms local `CanCollide = false` and `Transparency = 1`.
+  - [x] Force `HumanoidStateType.Freefall` on standing character (kills floating humanoid glitch).
+  - [x] Hide and restore attached GUI billboard labels.
+  - [x] Register controller in `src/client/Main.client.luau`.
+- [x] **1.5 Studio Verification & Playtesting**
+  - [x] Placed `TestPlatform_Demo` in `Workspace.Hazards.DisappearingPlatforms`.
+  - [x] Verified responsive step trigger, clean drop into gap, and safe regeneration.
 
 ---
 
-### ⚪ PHASE 2: Piston Crusher (`PistonCrusher`)
+### 🟡 PHASE 2: Piston Crusher (`PistonCrusher`)
 > **Focus:** 1-axis vertical mechanical slam hazard. Periodic telegraph $\rightarrow$ violent slam $\rightarrow$ outward squash knockback into ragdoll & coin explosion.
 
 #### Tasks:

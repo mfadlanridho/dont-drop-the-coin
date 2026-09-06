@@ -132,6 +132,7 @@ stateDiagram-v2
 
 For full technical specifications per system, refer to:
 - [Universal Guard AI Engine Architecture](docs/systems/12_GUARD_AI_ENGINE.md)
+- [System 11: Disappearing Platforms Architecture](docs/systems/11_DISAPPEARING_PLATFORMS.md)
 - [Settings & TopbarPlus Documentation](docs/systems/10_SETTINGS_SYSTEM.md)
 - [Audio System Architecture](docs/systems/08_AUDIO_SYSTEM.md)
 - [UI & Monetization Architecture](docs/UI_AND_MONETIZATION_ARCHITECTURE.md)
