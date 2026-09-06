@@ -1,106 +1,494 @@
 --!nonstrict
---[[
-    DataStoreManager.luau
-    Handles player session data loading, profile reconciliation, auto-saving, and dupe-proof persistence using ProfileStore.
-    Location: src/server/Services/DataStoreManager.luau (Syncs to ServerScriptService.Server.Services.DataStoreManager)
---]]
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"))
-
-local ServerScriptService = game:GetService("ServerScriptService")
-local ServerPackages = ServerScriptService:WaitForChild("ServerPackages")
-local ProfileStore = require(ServerPackages:WaitForChild("ProfileStore") :: ModuleScript)
-
-local PlayerProfileStore = ProfileStore.New(
-	Config.DATASTORE_KEY,
-	Config.DEFAULT_DATA
-)
-
-local Profiles = {}
 local DataStoreManager = {}
 
--- Load Profile on Player Join
-local function onPlayerAdded(player: Player)
-	local profileKey = "Player_" .. player.UserId
-	local profile = PlayerProfileStore:StartSessionAsync(profileKey, {
-		Steal = true,
-	})
+local STORE_NAME = "PlayerData_V2"
+local AUTOSAVE_INTERVAL = 60
+local SAVE_RETRIES = 5
+local RETRY_BASE_DELAY = 2
+local SESSION_TIMEOUT = 180
+local MAX_COINS = 2_147_483_647
+local MAX_TOTAL_BANKED = 2_147_483_647
 
-	if profile ~= nil then
-		profile:AddUserId(player.UserId)
-		profile:Reconcile()
-		profile.OnSessionEnd:Connect(function()
-			Profiles[player] = nil
-			player:Kick("Your session ended or was logged into from another device.")
-		end)
+local Store = DataStoreService:GetDataStore(STORE_NAME)
 
-		if player:IsDescendantOf(Players) == true then
-			Profiles[player] = profile
-			print(string.format("[DataStoreManager] Profile loaded & active for %s (UserId: %d)", player.Name, player.UserId))
-		else
-			profile:EndSession()
+local DEFAULT_DATA = {
+	DataVersion = 2,
+	Coins = 0,
+	TotalBanked = 0,
+}
+
+local sessions = {}
+local shuttingDown = false
+
+local function deepCopy(value)
+	if type(value) ~= "table" then
+		return value
+	end
+
+	local copy = {}
+
+	for key, child in pairs(value) do
+		copy[key] = deepCopy(child)
+	end
+
+	return copy
+end
+
+local function reconcile(data, defaults)
+	if type(data) ~= "table" then
+		data = {}
+	end
+
+	for key, defaultValue in pairs(defaults) do
+		if data[key] == nil then
+			data[key] = deepCopy(defaultValue)
+		elseif type(defaultValue) == "table" then
+			data[key] = reconcile(data[key], defaultValue)
 		end
-	else
-		player:Kick("Could not load your player data. Please rejoin.")
 	end
+
+	return data
 end
 
--- Release Profile on Player Leave
-local function onPlayerRemoving(player: Player)
-	local profile = Profiles[player]
-	if profile ~= nil then
-		profile:EndSession()
-		Profiles[player] = nil
-		print(string.format("[DataStoreManager] Profile session ended for %s", player.Name))
+local function sanitize(data)
+	data = reconcile(data, DEFAULT_DATA)
+
+	if type(data.Coins) ~= "number" or data.Coins ~= data.Coins then
+		data.Coins = 0
 	end
+
+	if type(data.TotalBanked) ~= "number" or data.TotalBanked ~= data.TotalBanked then
+		data.TotalBanked = 0
+	end
+
+	data.Coins = math.clamp(math.floor(data.Coins), 0, MAX_COINS)
+	data.TotalBanked = math.clamp(math.floor(data.TotalBanked), 0, MAX_TOTAL_BANKED)
+
+	if type(data.DataVersion) ~= "number" then
+		data.DataVersion = DEFAULT_DATA.DataVersion
+	end
+
+	return data
 end
 
--- Public API: Get Active Profile Data
-function DataStoreManager.GetData(player: Player)
-	local profile = Profiles[player]
-	if profile ~= nil then
-		return profile.Data
+local function migrate(data)
+	data = sanitize(data)
+
+	if data.DataVersion < 2 then
+		data.DataVersion = 2
 	end
-	return nil
+
+	return data
 end
 
--- Public API: Add Permanent Banked Cash
-function DataStoreManager.AddBankedCash(player: Player, amount: number): boolean
-	local profile = Profiles[player]
-	if profile ~= nil and profile.Data and amount > 0 then
-		profile.Data.Coins = (profile.Data.Coins or 0) + amount
-		profile.Data.TotalBanked = (profile.Data.TotalBanked or 0) + amount
+local function getKey(userId)
+	return "Player_" .. tostring(userId)
+end
+
+local function isSessionValid(session)
+	return session ~= nil and session.Data ~= nil and session.LockId ~= nil
+end
+
+local function waitForRetry(attempt)
+	task.wait(RETRY_BASE_DELAY * (2 ^ (attempt - 1)))
+end
+
+local function executeWithRetries(callback)
+	local lastError
+
+	for attempt = 1, SAVE_RETRIES do
+		local success, result = pcall(callback)
+
+		if success then
+			return true, result
+		end
+
+		lastError = result
+
+		if attempt < SAVE_RETRIES then
+			waitForRetry(attempt)
+		end
+	end
+
+	return false, lastError
+end
+
+local function acquireSession(player)
+	local key = getKey(player.UserId)
+	local lockId = game.JobId .. ":" .. tostring(os.time())
+
+	local success, result = executeWithRetries(function()
+		return Store:UpdateAsync(key, function(oldData)
+			oldData = migrate(oldData)
+
+			local existingLock = oldData.__SessionLock
+			local existingTime = oldData.__SessionTime or 0
+			local currentTime = os.time()
+
+			if existingLock and existingLock ~= lockId then
+				if currentTime - existingTime < SESSION_TIMEOUT then
+					return nil
+				end
+			end
+
+			oldData.__SessionLock = lockId
+			oldData.__SessionTime = currentTime
+
+			return oldData
+		end)
+	end)
+
+	if not success then
+		return false, result
+	end
+
+	if result == nil then
+		return false, "SessionLocked"
+	end
+
+	result = migrate(result)
+
+	result.__SessionLock = nil
+	result.__SessionTime = nil
+
+	local session = {
+		Player = player,
+		Data = result,
+		LockId = lockId,
+		Dirty = false,
+		Saving = false,
+		Loaded = true,
+	}
+
+	sessions[player.UserId] = session
+
+	return true, session
+end
+
+local function saveSession(session, release)
+	if not isSessionValid(session) then
+		return false, "InvalidSession"
+	end
+
+	if session.Saving then
+		return false, "AlreadySaving"
+	end
+
+	session.Saving = true
+
+	local player = session.Player
+	local key = getKey(player.UserId)
+	local lockId = session.LockId
+	local dataToSave = deepCopy(session.Data)
+
+	dataToSave = migrate(dataToSave)
+
+	dataToSave.__SessionLock = lockId
+	dataToSave.__SessionTime = os.time()
+
+	local success, result = executeWithRetries(function()
+		return Store:UpdateAsync(key, function(oldData)
+			oldData = migrate(oldData)
+
+			local existingLock = oldData.__SessionLock
+
+			if existingLock ~= lockId then
+				return nil
+			end
+
+			if release then
+				dataToSave.__SessionLock = nil
+				dataToSave.__SessionTime = nil
+			else
+				dataToSave.__SessionTime = os.time()
+			end
+
+			return dataToSave
+		end)
+	end)
+
+	session.Saving = false
+
+	if not success then
+		return false, result
+	end
+
+	if result == nil then
+		return false, "SessionOwnershipLost"
+	end
+
+	session.Dirty = false
+
+	if release then
+		session.Loaded = false
+	end
+
+	return true
+end
+
+function DataStoreManager.LoadPlayer(player)
+	if sessions[player.UserId] then
+		return true, sessions[player.UserId].Data
+	end
+
+	local success, result = acquireSession(player)
+
+	if not success then
+		warn("[DataStoreManager] Failed to load " .. player.Name .. ": " .. tostring(result))
+		return false, result
+	end
+
+	print("[DataStoreManager] Loaded data for " .. player.Name)
+
+	return true, result.Data
+end
+
+function DataStoreManager.GetData(player)
+	local session = sessions[player.UserId]
+
+	if not session or not session.Loaded then
+		return nil
+	end
+
+	return session.Data
+end
+
+function DataStoreManager.IsLoaded(player)
+	local session = sessions[player.UserId]
+
+	return session ~= nil and session.Loaded == true
+end
+
+function DataStoreManager.MarkDirty(player)
+	local session = sessions[player.UserId]
+
+	if not session or not session.Loaded then
+		return false
+	end
+
+	session.Dirty = true
+
+	return true
+end
+
+function DataStoreManager.AddBankedCash(player, amount)
+	if type(amount) ~= "number" then
+		return false
+	end
+
+	if amount <= 0 or amount ~= amount then
+		return false
+	end
+
+	amount = math.floor(amount)
+
+	local session = sessions[player.UserId]
+
+	if not isSessionValid(session) then
+		return false
+	end
+
+	local data = session.Data
+
+	if data.Coins + amount > MAX_COINS then
+		return false
+	end
+
+	if data.TotalBanked + amount > MAX_TOTAL_BANKED then
+		return false
+	end
+
+	data.Coins += amount
+	data.TotalBanked += amount
+
+	session.Dirty = true
+
+	return true
+end
+
+function DataStoreManager.RemoveCoins(player, amount)
+	if type(amount) ~= "number" then
+		return false
+	end
+
+	if amount <= 0 or amount ~= amount then
+		return false
+	end
+
+	amount = math.floor(amount)
+
+	local session = sessions[player.UserId]
+
+	if not isSessionValid(session) then
+		return false
+	end
+
+	if session.Data.Coins < amount then
+		return false
+	end
+
+	session.Data.Coins -= amount
+	session.Dirty = true
+
+	return true
+end
+
+function DataStoreManager.SetCoins(player, amount)
+	if type(amount) ~= "number" then
+		return false
+	end
+
+	if amount < 0 or amount ~= amount then
+		return false
+	end
+
+	amount = math.floor(amount)
+
+	if amount > MAX_COINS then
+		return false
+	end
+
+	local session = sessions[player.UserId]
+
+	if not isSessionValid(session) then
+		return false
+	end
+
+	session.Data.Coins = amount
+	session.Dirty = true
+
+	return true
+end
+
+function DataStoreManager.GetCoins(player)
+	local data = DataStoreManager.GetData(player)
+
+	if not data then
+		return nil
+	end
+
+	return data.Coins
+end
+
+function DataStoreManager.GetTotalBanked(player)
+	local data = DataStoreManager.GetData(player)
+
+	if not data then
+		return nil
+	end
+
+	return data.TotalBanked
+end
+
+function DataStoreManager.SavePlayer(player, release)
+	local session = sessions[player.UserId]
+
+	if not session then
+		return false, "NoSession"
+	end
+
+	local success, result = saveSession(session, release == true)
+
+	if release then
+		sessions[player.UserId] = nil
+	end
+
+	if not success then
+		warn("[DataStoreManager] Failed to save " .. player.Name .. ": " .. tostring(result))
+	end
+
+	return success, result
+end
+
+function DataStoreManager.SaveAll()
+	local players = Players:GetPlayers()
+	local remaining = #players
+
+	if remaining == 0 then
 		return true
 	end
-	return false
-end
 
--- Save All Active Sessions (BindToClose Handler)
-function DataStoreManager.SaveAll()
-	for _, player in ipairs(Players:GetPlayers()) do
-		onPlayerRemoving(player)
-	end
-end
+	local completed = 0
 
--- Initialize Listeners
-function DataStoreManager.Init()
-	Players.PlayerAdded:Connect(function(player)
-		task.spawn(onPlayerAdded, player)
-	end)
-	Players.PlayerRemoving:Connect(onPlayerRemoving)
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		task.spawn(onPlayerAdded, player)
+	for _, player in ipairs(players) do
+		task.spawn(function()
+			DataStoreManager.SavePlayer(player, true)
+			completed += 1
+		end)
 	end
 
-	game:BindToClose(function()
-		print("[DataStoreManager] Server shutting down, releasing all ProfileStore sessions...")
-		DataStoreManager.SaveAll()
-	end)
+	local startTime = os.clock()
+
+	while completed < remaining and os.clock() - startTime < 25 do
+		task.wait(0.1)
+	end
+
+	return completed == remaining
 end
+
+function DataStoreManager.ReleasePlayer(player)
+	return DataStoreManager.SavePlayer(player, true)
+end
+
+task.spawn(function()
+	while not shuttingDown do
+		task.wait(AUTOSAVE_INTERVAL)
+
+		if shuttingDown then
+			break
+		end
+
+		for _, session in pairs(sessions) do
+			if session.Loaded and session.Dirty and not session.Saving then
+				task.spawn(function()
+					local success, result = saveSession(session, false)
+
+					if not success then
+						warn("[DataStoreManager] Autosave failed for " .. session.Player.Name .. ": " .. tostring(result))
+					end
+				end)
+			end
+		end
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	DataStoreManager.ReleasePlayer(player)
+end)
+
+game:BindToClose(function()
+	shuttingDown = true
+
+	local players = Players:GetPlayers()
+
+	for _, player in ipairs(players) do
+		task.spawn(function()
+			DataStoreManager.SavePlayer(player, true)
+		end)
+	end
+
+	local startTime = os.clock()
+
+	while os.clock() - startTime < 25 do
+		local activeSessions = 0
+
+		for _, session in pairs(sessions) do
+			if session.Saving then
+				activeSessions += 1
+			end
+		end
+
+		if activeSessions == 0 then
+			break
+		end
+
+		task.wait(0.1)
+	end
+end)
 
 return DataStoreManager

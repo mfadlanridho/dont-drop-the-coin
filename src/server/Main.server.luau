@@ -30,6 +30,7 @@ local SERVICE_ORDER = {
 	"CombatServer",
 	"SettingsService",
 	"GuardAIService",
+	
 }
 
 for _, serviceName in ipairs(SERVICE_ORDER) do
