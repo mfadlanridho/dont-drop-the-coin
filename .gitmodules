@@ -19,3 +19,6 @@
 [submodule "packages/LocomotionModule"]
 	path = packages/LocomotionModule
 	url = https://github.com/mfadlanridho/LocomotionModule.git
+[submodule "packages/SignalModule"]
+	path = packages/SignalModule
+	url = https://github.com/mfadlanridho/SignalModule.git
