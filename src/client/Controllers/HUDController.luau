@@ -11,7 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 local HUDController = {}
 
 -- Configurable: Set to "Stack" for current unbanked coins, or "Coins" for permanent banked cash
-local TARGET_STAT = "Stack"
+local TARGET_STAT = "Coins"
 
 function HUDController.Init()
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -41,6 +41,10 @@ function HUDController.Init()
 
 		statVal.Changed:Connect(update)
 		update()
+
+		if TARGET_STAT == "Coins" and not LocalPlayer:GetAttribute("DataReady") then
+			LocalPlayer:GetAttributeChangedSignal("DataReady"):Once(update)
+		end
 	end
 
 	task.spawn(bindLabel)
