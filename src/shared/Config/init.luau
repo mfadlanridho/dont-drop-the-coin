@@ -48,10 +48,23 @@ Config.RAGDOLL_DURATION = 2.5 -- Duration of physics ragdoll in seconds
 Config.GROUP_ID = 0 -- Replace with your actual Roblox Group ID
 Config.GROUP_CASH_MULTIPLIER = 1.20 -- +20% permanent cash boost for group members
 
--- Sound Matrix Pitch Shift
-Config.BASE_PITCH = 1.0
-Config.PITCH_INCREMENT = 0.05
-Config.MAX_PITCH = 2.0
-Config.PITCH_RESET_TIME = 3 -- Reset combo pitch after 3 seconds of no pickups
+-- Environmental Hazards Configuration
+Config.HAZARDS = {
+	DISAPPEARING_PLATFORM = {
+		WARNING_DELAY = 0.85, -- Seconds platform flashes before dropping collision
+		RESPAWN_DELAY = 2.5,  -- Seconds platform stays invisible before regenerating
+		WARNING_COLOR = Color3.fromRGB(255, 60, 60), -- Flash alert color
+	},
+	PISTON_CRUSHER = {
+		DROP_DISTANCE = 12,     -- Travel distance in studs
+		CYCLE_TIME = 3.0,       -- Full cycle time in seconds
+		ANTICIPATION_TIME = 0.25, -- Warning micro-jitter duration
+	},
+	PENDULUM = {
+		SWING_ANGLE = 50,  -- Maximum swing angle in degrees
+		SWING_SPEED = 2.5, -- Oscillation speed multiplier
+		ARM_LENGTH = 10,   -- Stud distance from blade to pivot
+	},
+}
 
 return Config
