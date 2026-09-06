@@ -1,10 +1,14 @@
 --!nonstrict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 
+local Signal = require(ReplicatedStorage.Packages.SignalModule)
+
 local DataStoreManager = {}
+DataStoreManager.PlayerLoaded = Signal.new()
 
 local STORE_NAME = "PlayerData_V2"
 local AUTOSAVE_INTERVAL = 60
@@ -244,8 +248,47 @@ function DataStoreManager.LoadPlayer(player)
 	end
 
 	print("[DataStoreManager] Loaded data for " .. player.Name)
+	DataStoreManager.PlayerLoaded:Fire(player, result.Data)
 
 	return true, result.Data
+end
+
+function DataStoreManager.OnPlayerLoaded(player: Player, callback: (data: any) -> ())
+	if not player.Parent then return end
+
+	if DataStoreManager.IsLoaded(player) then
+		task.spawn(callback, DataStoreManager.GetData(player))
+		return
+	end
+
+	local conn: any
+	local removingConn: RBXScriptConnection?
+
+	local function cleanup()
+		if conn then
+			conn:Disconnect()
+			conn = nil
+		end
+		if removingConn then
+			removingConn:Disconnect()
+			removingConn = nil
+		end
+	end
+
+	conn = DataStoreManager.PlayerLoaded:Connect(function(loadedPlayer, data)
+		if loadedPlayer == player then
+			cleanup()
+			if player.Parent then
+				callback(data)
+			end
+		end
+	end)
+
+	removingConn = Players.PlayerRemoving:Connect(function(leavingPlayer)
+		if leavingPlayer == player then
+			cleanup()
+		end
+	end)
 end
 
 function DataStoreManager.GetData(player)
