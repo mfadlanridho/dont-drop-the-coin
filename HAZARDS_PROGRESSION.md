@@ -51,27 +51,30 @@
 
 ---
 
-### 🟡 PHASE 2: Piston Crusher (`PistonCrusher`)
+### 🟢 PHASE 2: Piston Crusher (`PistonCrusher`)
 > **Focus:** 1-axis vertical mechanical slam hazard. Periodic telegraph $\rightarrow$ violent slam $\rightarrow$ outward squash knockback into ragdoll & coin explosion.
 
 #### Tasks:
-- [ ] **2.1 Directional CombatServer Extension**
-  - [ ] Update `CombatServer.BumpVictimModel()` in `src/server/Services/CombatServer.luau` to accept optional `customLaunchVector: Vector3?`.
-- [ ] **2.2 Core OOP Component (`src/server/Hazards/PistonCrusher.luau`)**
-  - [ ] Implement cycle: Ceiling Dwell $\rightarrow$ Anticipation Jitter $\rightarrow$ Slam $\rightarrow$ Floor Dwell $\rightarrow$ Retract.
-  - [ ] Apply kinematic `AssemblyLinearVelocity` during stroke so physics solver registers downward momentum.
-  - [ ] Compute outward horizontal launch vector from piston center to player HRP ($+35$ vertical lift).
-  - [ ] Add per-character hit debounce per cycle.
-  - [ ] Expose configurable attributes:
-    - `DropDistance` (default `12` studs)
+- [x] **2.1 Directional CombatServer Extension**
+  - [x] Updated `CombatServer.BumpVictimModel()` in `src/server/Services/CombatServer.luau` to accept optional `customLaunchVector: Vector3?`.
+- [x] **2.2 Core OOP Component (`src/server/Hazards/PistonCrusher.luau`)**
+  - [x] Implement cycle: Ceiling Dwell $\rightarrow$ Anticipation Jitter (0.25s) $\rightarrow$ Slam (0.20s) $\rightarrow$ Floor Dwell (0.35s) $\rightarrow$ Retract (1.10s).
+  - [x] Apply kinematic `AssemblyLinearVelocity` during downward stroke so physics solver registers downward momentum.
+  - [x] Compute outward horizontal launch vector from piston center to player HRP ($+35$ vertical lift).
+  - [x] Add per-character hit debounce per cycle.
+  - [x] Integrate `SignalModule` events (`Slammed`, `HitVictim`).
+  - [x] Expose configurable attributes (with `Config.HAZARDS.PISTON_CRUSHER` fallbacks):
+    - `DropDistance` (default `10` studs)
     - `CycleTime` (default `3.0s`)
     - `AnticipationTime` (default `0.25s`)
     - `PhaseOffset` (default `0.0s`)
-- [ ] **2.3 Service Integration**
-  - [ ] Wire `PistonCrusher` into `HazardService.luau`.
-  - [ ] Scan `Workspace.Hazards.Pistons` and tag `Hazard_Piston`.
-- [ ] **2.4 Verification & Playtesting**
-  - [ ] Place test piston in Studio.
+- [x] **2.3 Streaming-Native Service Orchestration (`PistonCrusherService.luau`)**
+  - [x] Create dedicated `PistonCrusherService.luau` in `src/server/Services/`.
+  - [x] Primary: 100% Streaming-Native CollectionService (`Hazard_Piston`).
+  - [x] Server convenience: Auto-tag parts placed in `Workspace.Hazards.Pistons`.
+  - [x] Register `PistonCrusherService` in `Main.server.luau`.
+- [x] **2.4 Studio Verification & Playtesting**
+  - [x] Placed industrial crush frame & `TestPiston_Demo` in `Workspace.Hazards.Pistons`.
   - [ ] Stand under piston during slam: verify outward squash launch, 2.5s ragdoll, and coin scatter.
 
 ---

@@ -57,8 +57,8 @@ function CoinService.CollectArenaNode(player: Player, coinNode: BasePart): boole
 
 	print(string.format("[CoinService] %s collected Arena Node in Zone %d (New Stack: %d)", player.Name, zoneTier, newStack))
 
-	-- Respawn Timer (5 seconds)
-	task.delay(Config.COIN_NODE_RESPAWN_TIME or 5, function()
+	-- Respawn Timer (Standard cooldown from central Config)
+	task.delay(Config.COIN_NODE_RESPAWN_TIME or 3, function()
 		if coinNode and coinNode.Parent then
 			coinNode:SetAttribute("Active", true)
 			coinNode.Transparency = 0

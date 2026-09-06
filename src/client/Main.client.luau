@@ -29,6 +29,7 @@ local CONTROLLER_ORDER = {
 	"AudioController",
 	"HUDController",
 	"StackVisualizer",
+	"CoinVisualizer",
 	"InputController",
 	"DashBumpGizmoController",
 	"DebugController",

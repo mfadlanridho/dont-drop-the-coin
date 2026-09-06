@@ -13,6 +13,7 @@ Config.AUTO_SAVE_INTERVAL = 300 -- Save session data every 5 minutes
 
 -- Default Player Data Schema
 Config.DEFAULT_DATA = {
+	DataVersion = 2,
 	Coins = 0,
 	TotalBanked = 0,
 	EquippedSkin = "Default",
@@ -35,8 +36,29 @@ Config.STACK_FOLLOW_HEAD_ROTATION = false -- If true, stack tilts with head anim
 Config.COIN_NODE_RESPAWN_TIME = 3 -- Seconds before coin node respawns
 Config.DESPAWN_DROPPED_COIN_TIME = 10 -- Lifetime of dropped explosion coins
 
+-- Coin Spawner & Node System (CollectionService & Upward Face Math)
+Config.COIN_SPAWNER = {
+	TAG = "CoinSpawnSurface",
+	ALIASES = { "CoinSpawner" }, -- Backward-compatible aliases
+	NODE_TAG = "CoinNode",
+	DEFAULT_HOVER_HEIGHT = 2.0, -- Studs above the detected upward surface
+	SAFETY_MARGIN = 2.5,        -- Inset margin in studs from face edges to avoid spawning off ledges
+	COIN_SPACING = 8.0,         -- Distance between coins in studs when auto-filling the face area
+	MAX_COINS_PER_SURFACE = 10, -- Maximum coins allowed on a single surface to protect performance
+	TIER_COLORS = {
+		[1] = Color3.fromRGB(255, 215, 0),   -- Zone 1: Gold Neon
+		[2] = Color3.fromRGB(0, 230, 255),   -- Zone 2: Cyan Neon
+		[3] = Color3.fromRGB(180, 50, 255),  -- Zone 3: Purple Neon
+	},
+	ANIMATION = {
+		ROTATION_SPEED = 2.5, -- Radians per second
+		BOB_AMPLITUDE = 0.35, -- Studs up/down
+		BOB_FREQUENCY = 3.0,  -- Oscillation cycles per second
+	},
+}
+
 -- Combat & Physics
-Config.BUMP_COOLDOWN = 1 -- Cooldown in seconds for Dash Bump
+Config.BUMP_COOLDOWN = 5 -- Cooldown in seconds for Dash Bump
 Config.DASH_DISTANCE = 15 -- Exact forward dash distance in studs
 Config.DASH_DURATION = 1 -- Duration of forward dash in seconds
 Config.DASH_ANIMATION_ID = "rbxassetid://102382549309160" -- Roblox Asset ID for Dash skill animation

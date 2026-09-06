@@ -67,13 +67,13 @@ local function setupLeaderstats(player: Player)
 		stackVal.Parent = leaderstats
 	end
 
-	-- Sync starting data from ProfileStore
-	task.spawn(function()
-		local data = DataStoreManager.GetData(player)
-		if data and coinsVal then
-			coinsVal.Value = data.Coins or 0
+	-- Sync starting data from DataStore via PlayerLoaded signal
+	DataStoreManager.OnPlayerLoaded(player, function(data)
+		if player.Parent and coinsVal then
+			coinsVal.Value = (data and data.Coins) or 0
+			player:SetAttribute("DataReady", true)
+			log(string.format("Leaderstats synced from DataStore for %s (Coins: %d, Stack: %d)", player.Name, coinsVal.Value, stackVal.Value))
 		end
-		log(string.format("Leaderstats set up for %s (Coins: %d, Stack: %d)", player.Name, coinsVal.Value, stackVal.Value))
 	end)
 end
 

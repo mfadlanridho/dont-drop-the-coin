@@ -28,16 +28,20 @@ local LastBumpTime: { [number]: number } = {}
 local CombatServer = {}
 
 -- Execute Full Combat Bump API on a Victim (Player or Dummy Model)
-function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Model)
+function CombatServer.BumpVictimModel(attackerPlayer: Player?, victimModel: Model, customLaunchVector: Vector3?)
 	local victimHrp = victimModel:FindFirstChild("HumanoidRootPart") :: Part
 	if not victimHrp then return end
 
-	local attackerChar = attackerPlayer and attackerPlayer.Character
-	local attackerHrp = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart") :: Part
-	local launchDir = if attackerHrp then (victimHrp.Position - attackerHrp.Position).Unit else -victimHrp.CFrame.LookVector
-
 	local knockbackForce = Config.BUMP_BASE_IMPULSE
-	local launchVector = launchDir * knockbackForce + Vector3.new(0, 35, 0)
+	local launchVector: Vector3
+	if customLaunchVector then
+		launchVector = customLaunchVector
+	else
+		local attackerChar = attackerPlayer and attackerPlayer.Character
+		local attackerHrp = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart") :: Part
+		local launchDir = if attackerHrp then (victimHrp.Position - attackerHrp.Position).Unit else -victimHrp.CFrame.LookVector
+		launchVector = launchDir * knockbackForce + Vector3.new(0, 35, 0)
+	end
 
 	-- Check if victim is a Player or an NPC Dummy Model
 	local victimPlayer = Players:GetPlayerFromCharacter(victimModel)
