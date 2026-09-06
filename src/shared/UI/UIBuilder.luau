@@ -22,66 +22,8 @@ end
 
 function UIBuilder.BuildAll(targetRoot)
 	local parentRoot = targetRoot or StarterGui
-	-- 1. Create HUDGui (ScreenGui, DisplayOrder = 1)
-	local hudGui = getOrCreate(parentRoot, "HUDGui", "ScreenGui")
-	hudGui.DisplayOrder = 1
-	hudGui.ResetOnSpawn = false
-	hudGui.IgnoreGuiInset = true
 
-	local walletFrame = getOrCreate(hudGui, "WalletFrame", "Frame")
-	walletFrame.AnchorPoint = Vector2.new(0, 0)
-	walletFrame.Position = UDim2.new(0, 20, 0, 20)
-	walletFrame.Size = UDim2.new(0, 240, 0, 80)
-	walletFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
-	walletFrame.BackgroundTransparency = 0.25
-
-	local walletCorner = getOrCreate(walletFrame, "UICorner", "UICorner")
-	walletCorner.CornerRadius = UDim.new(0, 12)
-
-	local walletStroke = getOrCreate(walletFrame, "UIStroke", "UIStroke")
-	walletStroke.Color = Color3.fromRGB(255, 215, 0)
-	walletStroke.Thickness = 2
-
-	local coinsLabel = getOrCreate(walletFrame, "CoinsLabel", "TextLabel")
-	coinsLabel.Position = UDim2.new(0, 15, 0, 10)
-	coinsLabel.Size = UDim2.new(1, -30, 0, 30)
-	coinsLabel.BackgroundTransparency = 1
-	coinsLabel.Text = "COINS: 0"
-	coinsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	coinsLabel.TextSize = 20
-	coinsLabel.Font = Enum.Font.GothamBold
-	coinsLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local bankedLabel = getOrCreate(walletFrame, "BankedLabel", "TextLabel")
-	bankedLabel.Position = UDim2.new(0, 15, 0, 40)
-	bankedLabel.Size = UDim2.new(1, -30, 0, 30)
-	bankedLabel.BackgroundTransparency = 1
-	bankedLabel.Text = "BANKED: $0"
-	bankedLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-	bankedLabel.TextSize = 18
-	bankedLabel.Font = Enum.Font.GothamMedium
-	bankedLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	-- DashBumpButton
-	local dashButton = getOrCreate(hudGui, "DashBumpButton", "ImageButton")
-	dashButton.AnchorPoint = Vector2.new(1, 1)
-	dashButton.Position = UDim2.new(1, -20, 1, -20)
-	dashButton.Size = UDim2.new(0, 90, 0, 90)
-	dashButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-	dashButton.BackgroundTransparency = 0.2
-
-	local dashCorner = getOrCreate(dashButton, "UICorner", "UICorner")
-	dashCorner.CornerRadius = UDim.new(1, 0)
-
-	local dashText = getOrCreate(dashButton, "Text", "TextLabel")
-	dashText.Size = UDim2.new(1, 0, 1, 0)
-	dashText.BackgroundTransparency = 1
-	dashText.Text = "DASH BUMP\n[E]"
-	dashText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	dashText.TextSize = 14
-	dashText.Font = Enum.Font.GothamBold
-
-	-- 2. Menus & Toggles (ScreenGui, DisplayOrder = 5)
+	-- 1. Menus & Toggles (ScreenGui, DisplayOrder = 5)
 	local menusGui = getOrCreate(parentRoot, "Menus", "ScreenGui")
 	menusGui.DisplayOrder = 5
 	menusGui.ResetOnSpawn = false

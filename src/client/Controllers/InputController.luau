@@ -1,13 +1,15 @@
 --!nonstrict
 --[[
     InputController.luau
-    Client controller handling E keybind (PC) and Touch Button (Mobile/Tablet via ContextActionService) for Dash Bump skill.
+    Client controller handling E keybind (PC), interactive Touch/Click button on MainHUD.CooldownContainer,
+    and real-time cooldown countdown display.
     Location: src/client/Controllers/InputController.luau (Syncs to StarterPlayerScripts.Client.Controllers.InputController)
 --]]
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -22,7 +24,57 @@ local ACTION_DASH_BUMP = "DashBumpAction"
 local lastCastTime = 0
 local localPlayer = Players.LocalPlayer
 
+-- Active UI references
+local cooldownFrame: ImageLabel? = nil
+local innerIcon: ImageLabel? = nil
+local textLabel: TextLabel? = nil
+
 local InputController = {}
+
+-- Updates visual state of the Cooldown button based on remaining time
+local function updateCooldownVisuals()
+	local now = os.clock()
+	local elapsed = now - lastCastTime
+	local remaining = Config.BUMP_COOLDOWN - elapsed
+
+	if not textLabel then
+		return
+	end
+
+	if remaining > 0 then
+		textLabel.Text = tostring(math.ceil(remaining))
+		textLabel.Visible = true
+		if innerIcon then
+			innerIcon.Visible = true
+		end
+	else
+		if UserInputService.KeyboardEnabled then
+			textLabel.Text = "E"
+			textLabel.Visible = true
+		else
+			textLabel.Text = ""
+			textLabel.Visible = false
+		end
+		if innerIcon then
+			innerIcon.Visible = false
+		end
+	end
+end
+
+-- Runs the countdown loop when cooldown begins
+local function startCooldownCountdown()
+	task.spawn(function()
+		while true do
+			local now = os.clock()
+			local remaining = Config.BUMP_COOLDOWN - (now - lastCastTime)
+			updateCooldownVisuals()
+			if remaining <= 0 then
+				break
+			end
+			task.wait(0.1)
+		end
+	end)
+end
 
 -- Find closest opponent player within 15-stud forward dash path on client
 local function findTargetVictimOnClient(): Player?
@@ -76,6 +128,9 @@ local function triggerDashBump()
 
 	lastCastTime = now
 
+	-- Start Visual Cooldown
+	startCooldownCountdown()
+
 	-- Perform instant local target validation check
 	local targetVictim = findTargetVictimOnClient()
 	if targetVictim then
@@ -102,19 +157,59 @@ local function handleAction(actionName, inputState, inputObject)
 	return Enum.ContextActionResult.Pass
 end
 
+-- Binds MainHUD CooldownContainer button & labels
+local function bindMainHUD()
+	local playerGui = localPlayer:WaitForChild("PlayerGui")
+	local mainHud = playerGui:WaitForChild("MainHUD", 10) :: ScreenGui?
+	if not mainHud then return end
+
+	local cooldownContainer = mainHud:WaitForChild("CooldownContainer", 5) :: Frame?
+	if not cooldownContainer then return end
+
+	local frame = cooldownContainer:WaitForChild("Cooldown", 5) :: ImageLabel?
+	if not frame then return end
+
+	cooldownFrame = frame
+	innerIcon = frame:FindFirstChild("Cooldown") :: ImageLabel?
+	textLabel = frame:FindFirstChild("TextLabel") :: TextLabel?
+
+	-- Enable touch/click directly on the designer's existing element
+	frame.Active = true
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			triggerDashBump()
+		end
+	end)
+
+	-- Initialize or resume visual state
+	local now = os.clock()
+	if (now - lastCastTime) < Config.BUMP_COOLDOWN then
+		startCooldownCountdown()
+	else
+		updateCooldownVisuals()
+	end
+end
+
 function InputController.Init()
-	-- Bind E Key (PC) and Create Touch Button (Mobile)
+	-- Bind E Key (PC) without CAS mobile button (createTouchButton = false)
 	ContextActionService:BindAction(
 		ACTION_DASH_BUMP,
 		handleAction,
-		true,
+		false,
 		Enum.KeyCode.E
 	)
 
-	ContextActionService:SetTitle(ACTION_DASH_BUMP, "DASH BUMP")
-	ContextActionService:SetDescription(ACTION_DASH_BUMP, "Knockback opponents!")
-
 	debugLog("Dash Bump input keybinds initialized.")
+
+	-- Bind to MainHUD and handle character respawn / GUI recreation
+	task.spawn(bindMainHUD)
+
+	local playerGui = localPlayer:WaitForChild("PlayerGui")
+	playerGui.ChildAdded:Connect(function(child)
+		if child.Name == "MainHUD" then
+			task.spawn(bindMainHUD)
+		end
+	end)
 end
 
 return InputController
