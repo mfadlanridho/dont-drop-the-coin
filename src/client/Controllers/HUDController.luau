@@ -1,7 +1,7 @@
 --!strict
 --[[
     HUDController.luau
-    Client controller listening to leaderstats.Stack and leaderstats.Coins value changes and updating WalletFrame in real-time.
+    Syncs player stats to StarterGui.MainHUD.PermaCash.
     Location: src/client/Controllers/HUDController.luau
 --]]
 
@@ -10,52 +10,46 @@ local LocalPlayer = Players.LocalPlayer
 
 local HUDController = {}
 
-local function setupLeaderstatsListeners(playerGui: PlayerGui, leaderstats: Folder)
-	local hudGui = playerGui:WaitForChild("HUDGui", 10) :: ScreenGui?
-	if not hudGui then return end
-
-	local walletFrame = hudGui:WaitForChild("WalletFrame", 10) :: Frame?
-	if not walletFrame then return end
-
-	local coinsLabel = walletFrame:WaitForChild("CoinsLabel", 10) :: TextLabel?
-	local bankedLabel = walletFrame:WaitForChild("BankedLabel", 10) :: TextLabel?
-
-	-- 1. Sync Current Stack (Coins on Head)
-	local stackVal = leaderstats:WaitForChild("Stack", 5) :: NumberValue?
-	if stackVal and coinsLabel then
-		local function updateStack()
-			coinsLabel.Text = "COINS: " .. tostring(stackVal.Value)
-		end
-		stackVal.Changed:Connect(updateStack)
-		updateStack()
-	end
-
-	-- 2. Sync Banked Coins (Banked Cash)
-	local coinsVal = leaderstats:WaitForChild("Coins", 5) :: NumberValue?
-	if coinsVal and bankedLabel then
-		local function updateBanked()
-			bankedLabel.Text = "BANKED: $" .. tostring(coinsVal.Value)
-		end
-		coinsVal.Changed:Connect(updateBanked)
-		updateBanked()
-	end
-
-	print("[HUDController] WalletFrame real-time leaderstats listeners initialized successfully!")
-end
+-- Configurable: Set to "Stack" for current unbanked coins, or "Coins" for permanent banked cash
+local TARGET_STAT = "Stack"
 
 function HUDController.Init()
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-	local leaderstats = LocalPlayer:WaitForChild("leaderstats", 10) :: Folder?
+	local leaderstats = LocalPlayer:WaitForChild("leaderstats", 15) :: Folder?
+	if not leaderstats then return end
 
-	if leaderstats then
-		setupLeaderstatsListeners(playerGui, leaderstats)
-	else
-		LocalPlayer.ChildAdded:Connect(function(child)
-			if child.Name == "leaderstats" and child:IsA("Folder") then
-				setupLeaderstatsListeners(playerGui, child)
-			end
-		end)
+	local statVal = leaderstats:WaitForChild(TARGET_STAT, 10) :: NumberValue?
+	if not statVal then return end
+
+	local function bindLabel()
+		local mainHud = playerGui:WaitForChild("MainHUD", 10) :: ScreenGui?
+		if not mainHud then return end
+
+		local permaCash = mainHud:FindFirstChild("PermaCash", true)
+		if not permaCash then
+			local container = mainHud:WaitForChild("PermaCashContainer", 5)
+			permaCash = container and container:WaitForChild("PermaCash", 5)
+		end
+		if not permaCash then return end
+
+		local label = permaCash:WaitForChild("TextLabel", 5) :: TextLabel?
+		if not label then return end
+
+		local function update()
+			label.Text = tostring(statVal.Value)
+		end
+
+		statVal.Changed:Connect(update)
+		update()
 	end
+
+	task.spawn(bindLabel)
+
+	playerGui.ChildAdded:Connect(function(child)
+		if child.Name == "MainHUD" then
+			task.spawn(bindLabel)
+		end
+	end)
 end
 
 return HUDController
