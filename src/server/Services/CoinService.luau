@@ -89,7 +89,7 @@ end
 --- Centralized API: Universal bonus coin award (for AFK rewards, daily spins, monetization)
 function CoinService.AwardBonus(player: Player, amount: number, originPart: BasePart?): number
 	local coins = math.max(1, amount or 1)
-	local newStack = StackServer.AddCoin(player, coins)
+	local newStack = StackServer.AddCoin(player, 1, coins)
 	playPickupAudio(player, originPart)
 
 	print(string.format("[CoinService] Awarded %d Bonus Coins to %s (New Stack: %d)", coins, player.Name, newStack))

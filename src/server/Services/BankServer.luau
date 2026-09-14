@@ -96,7 +96,11 @@ end
 
 -- Bank Stack for Player at a Specific Vault Pad
 function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boolean
-	local stackCount = StackServer.GetStackCount(player)
+	local coins = StackServer.GetCoins(player)
+	local stackCount = #coins
+	if stackCount <= 0 then
+		stackCount = StackServer.GetStackCount(player)
+	end
 	local vaultName = vaultPad and vaultPad.Name or "DefaultVault"
 
 	if stackCount <= 0 then
@@ -105,21 +109,41 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 	end
 
 	-- Check Group Membership if pad requires Group Loyalty
+	local isGroupMember = checkGroupMembership(player)
 	if vaultPad and (vaultPad.Name == "GroupMemberVault" or vaultPad:GetAttribute("RequireGroup") == true) then
-		if not checkGroupMembership(player) then
+		if not isGroupMember then
 			log(string.format("BLOCKED: Player %s not in Roblox Group ID %s for %s", player.Name, tostring(Config.GROUP_ID), vaultName))
 			return false
 		end
 	end
 
 	-- Read vault pad attribute multiplier (default 1x)
-	local multiplier = 1
+	local vaultMultiplier = 1
 	if vaultPad then
-		multiplier = vaultPad:GetAttribute("Multiplier") or 1
+		vaultMultiplier = vaultPad:GetAttribute("Multiplier") or 1
 	end
-	if multiplier <= 0 then multiplier = 1 end
+	if vaultMultiplier <= 0 then vaultMultiplier = 1 end
 
-	local earnedCash = math.floor(stackCount * multiplier)
+	-- Apply Group loyalty bonus if applicable
+	local groupBonus = 1.0
+	if isGroupMember and Config.GROUP_ID and Config.GROUP_ID > 0 and Config.GROUP_CASH_MULTIPLIER then
+		groupBonus = Config.GROUP_CASH_MULTIPLIER
+	end
+
+	-- Calculate total base cash by summing individual coin tier multipliers
+	local baseCash = 0
+	if #coins > 0 then
+		for _, tier in ipairs(coins) do
+			local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[tier]
+			local coinMultiplier = (tierData and tierData.Multiplier) or 1.0
+			baseCash += coinMultiplier
+		end
+	else
+		baseCash = stackCount -- Fallback if stack had no tier entries
+	end
+
+	local totalMultiplier = vaultMultiplier * groupBonus
+	local earnedCash = math.max(1, math.floor(baseCash * totalMultiplier))
 	DataStoreManager.AddBankedCash(player, earnedCash)
 
 	-- Clear head stack & update stats
@@ -129,7 +153,7 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 	-- Fire client bank visualizer remote event & 2D banking audio
 	local bankRemote = Remotes.Get("BankCoins")
 	if bankRemote then
-		bankRemote:FireClient(player, earnedCash, stackCount, multiplier)
+		bankRemote:FireClient(player, earnedCash, stackCount, totalMultiplier)
 	end
 
 	local soundRemote = Remotes.Get("PlaySound")
@@ -147,7 +171,7 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 		})
 	end
 
-	log(string.format("SUCCESS: Player %s BANKED %d coins for $%d cash at %s! (Multiplier: %.1fx)", player.Name, stackCount, earnedCash, vaultName, multiplier))
+	log(string.format("SUCCESS: Player %s BANKED %d coins for $%d cash at %s! (Base: %.2f, Multiplier: %.2fx)", player.Name, stackCount, earnedCash, vaultName, baseCash, totalMultiplier))
 	return true
 end
 
