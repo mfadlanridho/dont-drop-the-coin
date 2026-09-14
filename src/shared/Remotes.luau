@@ -35,6 +35,7 @@ local REMOTE_NAMES = {
 	"SendNotification",
 	"UpdateMusicVolume",
 	"DevTeleport",
+	"DevStackAction",
 }
 
 -- Initialize Remote Events

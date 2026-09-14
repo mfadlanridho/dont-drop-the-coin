@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -224,6 +225,39 @@ function StackServer.Init()
 	Players.PlayerAdded:Connect(onPlayerJoined)
 	for _, p in ipairs(Players:GetPlayers()) do
 		onPlayerJoined(p)
+	end
+
+	-- Developer Debug Action Remote Listener (Studio / Whitelisted Developers)
+	local devActionRemote = Remotes.Get("DevStackAction")
+	if devActionRemote then
+		devActionRemote.OnServerEvent:Connect(function(player: Player, action: string, ...)
+			if not RunService:IsStudio() then
+				local devIds = (Config :: any).DEVELOPER_IDS
+				local isDev = typeof(devIds) == "table" and table.find(devIds, player.UserId) ~= nil
+				local isOwner = game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId
+				if not isDev and not isOwner then
+					return
+				end
+			end
+
+			if action == "AddCoins" then
+				local tier, count = ...
+				StackServer.AddCoin(player, tier, count)
+			elseif action == "HitMaxWeight" then
+				local currentWeight = StackServer.GetStackWeight(player)
+				local targetWeight = 25
+				local needed = math.max(0, targetWeight - currentWeight)
+				local count = math.ceil(needed / 5.0)
+				if count > 0 then
+					StackServer.AddCoin(player, 10, count)
+				end
+			elseif action == "ClearStack" then
+				StackServer.ClearStack(player)
+			elseif action == "LootExplosion" then
+				local LootExplosion = require(script.Parent:WaitForChild("LootExplosion"))
+				LootExplosion.ScatterCoins(player)
+			end
+		end)
 	end
 
 	print("[StackServer] Initialized with coin tier tracking & dynamic WalkSpeed encumbrance.")

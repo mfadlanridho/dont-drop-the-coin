@@ -22,3 +22,6 @@
 [submodule "packages/SignalModule"]
 	path = packages/SignalModule
 	url = https://github.com/mfadlanridho/SignalModule.git
+[submodule "packages/GuardAIModule"]
+	path = packages/GuardAIModule
+	url = https://github.com/mfadlanridho/GuardAIModule.git
