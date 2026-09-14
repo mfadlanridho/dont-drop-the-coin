@@ -29,6 +29,87 @@ Config.ZONE_MULTIPLIERS = {
 	Zone3 = 3,  -- Void Lunatic (3x)
 }
 
+-- Zone Tier Data & Progression (Tiers 1 to 10)
+Config.ZONE_TIERS = {
+	[1] = {
+		Name = "Bronze",
+		Multiplier = 1.00,
+		Weight = 1.0,
+		Color = Color3.fromRGB(255, 215, 0), -- Gold/Bronze Neon
+		ModelName = "Coin_Tier1",
+	},
+	[2] = {
+		Name = "Silver",
+		Multiplier = 1.25,
+		Weight = 1.2,
+		Color = Color3.fromRGB(0, 230, 255), -- Cyan Neon
+		ModelName = "Coin_Tier2",
+	},
+	[3] = {
+		Name = "Gold",
+		Multiplier = 1.50,
+		Weight = 1.5,
+		Color = Color3.fromRGB(255, 180, 0), -- Deep Gold Neon
+		ModelName = "Coin_Tier3",
+	},
+	[4] = {
+		Name = "Emerald",
+		Multiplier = 1.75,
+		Weight = 1.8,
+		Color = Color3.fromRGB(50, 230, 90), -- Emerald Green Neon
+		ModelName = "Coin_Tier4",
+	},
+	[5] = {
+		Name = "Sapphire",
+		Multiplier = 2.00,
+		Weight = 2.2,
+		Color = Color3.fromRGB(30, 140, 255), -- Sapphire Blue Neon
+		ModelName = "Coin_Tier5",
+	},
+	[6] = {
+		Name = "Ruby",
+		Multiplier = 2.25,
+		Weight = 2.6,
+		Color = Color3.fromRGB(255, 45, 70), -- Ruby Red Neon
+		ModelName = "Coin_Tier6",
+	},
+	[7] = {
+		Name = "Amethyst",
+		Multiplier = 2.50,
+		Weight = 3.0,
+		Color = Color3.fromRGB(180, 50, 255), -- Purple Neon
+		ModelName = "Coin_Tier7",
+	},
+	[8] = {
+		Name = "Diamond",
+		Multiplier = 2.75,
+		Weight = 3.5,
+		Color = Color3.fromRGB(140, 240, 255), -- Diamond Bright Cyan
+		ModelName = "Coin_Tier8",
+	},
+	[9] = {
+		Name = "Void",
+		Multiplier = 3.00,
+		Weight = 4.0,
+		Color = Color3.fromRGB(90, 20, 160), -- Deep Void Violet
+		ModelName = "Coin_Tier9",
+	},
+	[10] = {
+		Name = "Celestial",
+		Multiplier = 3.25,
+		Weight = 5.0,
+		Color = Color3.fromRGB(255, 255, 255), -- Radiant Celestial White
+		ModelName = "Coin_Tier10",
+	},
+}
+
+-- Player Movement & Coin Encumbrance
+Config.ENCUMBRANCE = {
+	BASE_WALKSPEED = 16, -- Standard Roblox WalkSpeed (studs/sec)
+	MIN_WALKSPEED = 8,   -- Minimum WalkSpeed cap (prevents impossible jumps)
+	WEIGHT_PENALTY_FACTOR = 0.02, -- Speed penalty per unit of total stack weight (25 total weight = 50% reduction)
+}
+
 -- Coin & Stacking Mechanics
 Config.INITIAL_STACK_COUNT = 3 -- Initial coin stack count given on spawn (for testing/gameplay)
 Config.MAX_RENDER_STACK = 30 -- Maximum physical coin models welded to head
@@ -45,11 +126,6 @@ Config.COIN_SPAWNER = {
 	SAFETY_MARGIN = 2.5,        -- Inset margin in studs from face edges to avoid spawning off ledges
 	COIN_SPACING = 8.0,         -- Distance between coins in studs when auto-filling the face area
 	MAX_COINS_PER_SURFACE = 10, -- Maximum coins allowed on a single surface to protect performance
-	TIER_COLORS = {
-		[1] = Color3.fromRGB(255, 215, 0),   -- Zone 1: Gold Neon
-		[2] = Color3.fromRGB(0, 230, 255),   -- Zone 2: Cyan Neon
-		[3] = Color3.fromRGB(180, 50, 255),  -- Zone 3: Purple Neon
-	},
 	ANIMATION = {
 		ROTATION_SPEED = 2.5, -- Radians per second
 		BOB_AMPLITUDE = 0.35, -- Studs up/down

@@ -190,9 +190,9 @@ local function createCoinNode(name: string, pos: Vector3, zoneTier: number): Bas
 	node:SetAttribute("ZoneTier", zoneTier)
 
 	-- Apply Zone Tier Color if configured
-	local spawnerCfg = Config.COIN_SPAWNER
-	if spawnerCfg and spawnerCfg.TIER_COLORS and spawnerCfg.TIER_COLORS[zoneTier] then
-		node.Color = spawnerCfg.TIER_COLORS[zoneTier]
+	local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[zoneTier]
+	if tierData and tierData.Color then
+		node.Color = tierData.Color
 	end
 
 	-- Tag part for client-side CollectionService streaming and animations
