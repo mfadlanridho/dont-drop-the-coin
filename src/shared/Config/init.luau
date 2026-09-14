@@ -169,4 +169,127 @@ Config.HAZARDS = {
 	},
 }
 
+-- Guard Model Rig Templates & Associated Animations (Rig-specific definitions)
+Config.GUARD_TEMPLATES = {
+	["Balerina Capucina"] = {
+		Animations = {
+			Idle = "rbxassetid://107989875822839",   -- Verified custom Idle
+			Walk = "rbxassetid://111496778780434",   -- Verified custom Walk
+		},
+		MoveSpeed = 5,       -- Base movement speed (studs/sec)
+		AttackRadius = 5.0,
+	},
+
+	["Guard_Default"] = {
+		Animations = {
+			Idle = "rbxassetid://107989875822839",
+			Walk = "rbxassetid://111496778780434",
+		},
+		MoveSpeed = 12,
+		AttackRadius = 5.0,
+	},
+}
+
+-- Zone Floor Guard Placements & Level Progression (Zone -> TemplateName & Difficulty Modifiers)
+Config.ZONE_GUARDS = {
+	-- Default fallback for any floor without a custom entry
+	DEFAULT = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 12,
+		DetectionRadius = 35,
+		AttackRadius = 5.0,
+	},
+
+	-- Zone 1: Sunny Start
+	[1] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 12,
+		DetectionRadius = 35,
+		AttackRadius = 5.0,
+	},
+
+	-- Zone 2: Chaos Factory
+	[2] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 13,
+		DetectionRadius = 35,
+		AttackRadius = 5.0,
+	},
+
+	-- Zone 3: Void Lunatic
+	[3] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 14,
+		DetectionRadius = 35,
+		AttackRadius = 5.0,
+	},
+
+	-- Zone 4: Mechanical Works
+	[4] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 15,
+		DetectionRadius = 38,
+		AttackRadius = 5.0,
+	},
+
+	-- Zone 5: Neon City (Dual Guards)
+	[5] = {
+		TemplateName = "Balerina Capucina",
+		Count = 2,
+		MoveSpeed = 15,
+		DetectionRadius = 38,
+		AttackRadius = 5.5,
+	},
+
+	-- Zone 6: Aquatica
+	[6] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 16,
+		DetectionRadius = 40,
+		AttackRadius = 5.5,
+	},
+
+	-- Zone 7: Temple Of Ascension
+	[7] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 16,
+		DetectionRadius = 40,
+		AttackRadius = 6.0,
+	},
+
+	-- Zone 8: Sky Kingdom
+	[8] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 17,
+		DetectionRadius = 42,
+		AttackRadius = 6.0,
+	},
+
+	-- Zone 9: Mystic Realm
+	[9] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 18,
+		DetectionRadius = 42,
+		AttackRadius = 6.5,
+	},
+
+	-- Zone 10: Hellfire
+	[10] = {
+		TemplateName = "Balerina Capucina",
+		Count = 1,
+		MoveSpeed = 19,
+		DetectionRadius = 45,
+		AttackRadius = 7.0,
+	},
+}
+
 return Config

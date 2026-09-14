@@ -19,6 +19,7 @@ local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("Template
 
 local Services = script.Parent
 local CoinService = require(Services:WaitForChild("CoinService"))
+local ZoneService = require(Services:WaitForChild("ZoneService"))
 
 local CoinSpawner = {}
 local CoinNodesFolder: Folder
@@ -213,91 +214,32 @@ local function createCoinNode(name: string, pos: Vector3, zoneTier: number): Bas
 	return node
 end
 
---- Finds the primary walkable floor slab within a ZoneFloor folder
-local function findPrimaryFloorSlab(floorFolder: Instance): BasePart?
-	local candidates: { BasePart } = {}
-	for _, child in ipairs(floorFolder:GetChildren()) do
-		if child:IsA("BasePart") and child.CanCollide then
-			table.insert(candidates, child)
-		end
-	end
+--- Event listener: spawns floor coins when ZoneService discovers a ZoneFloor
+local function onZoneFloorDiscovered(zoneData: any)
+	if spawnerCfg.AUTO_DISCOVER_ZONE_FLOORS == false then return end
+	local primarySlab = zoneData.FloorSlab
+	if not primarySlab or processedSpawners[primarySlab] then return end
+	processedSpawners[primarySlab] = true
 
-	if #candidates == 0 then
-		return nil
-	elseif #candidates == 1 then
-		return candidates[1]
-	end
-
-	-- Prefer non-neon materials to avoid selecting decorative underglow/trim
-	local nonNeonCandidates: { BasePart } = {}
-	for _, part in ipairs(candidates) do
-		if part.Material ~= Enum.Material.Neon then
-			table.insert(nonNeonCandidates, part)
-		end
-	end
-
-	local pool = if #nonNeonCandidates > 0 then nonNeonCandidates else candidates
-
-	-- Pick candidate with the highest upward surface elevation
-	local bestPart = pool[1]
-	local bestTopY = -math.huge
-	for _, part in ipairs(pool) do
-		local face = getUpwardFaceData(part)
-		local topY = part.Position.Y + (face.normal.Y * face.normalExtent)
-		if topY > bestTopY then
-			bestTopY = topY
-			bestPart = part
-		end
-	end
-
-	return bestPart
-end
-
---- Automatically discovers and configures coin spawners on all Zone floors in Workspace
-local function discoverZoneFloors(): number
-	if spawnerCfg.AUTO_DISCOVER_ZONE_FLOORS == false then
-		return 0
-	end
-
-	local discoveredCount = 0
 	local defaultSpacing = spawnerCfg.ZONE_FLOOR_COIN_SPACING or 18.0
 	local defaultMargin = spawnerCfg.ZONE_FLOOR_SAFETY_MARGIN or 6.0
 	local defaultHover = spawnerCfg.ZONE_FLOOR_HOVER_HEIGHT or spawnerCfg.DEFAULT_HOVER_HEIGHT or 2.0
 
-	for _, child in ipairs(Workspace:GetChildren()) do
-		local tierStr = child.Name:match("^Zone(%d+)")
-		if tierStr and (child:IsA("Model") or child:IsA("Folder")) then
-			local zoneTier = tonumber(tierStr)
-			if zoneTier then
-				local floorFolder = child:FindFirstChild("ZoneFloor")
-				if floorFolder then
-					local primarySlab = findPrimaryFloorSlab(floorFolder)
-					if primarySlab and not processedSpawners[primarySlab] then
-						processedSpawners[primarySlab] = true
+	local spacing = primarySlab:GetAttribute("CoinSpacing") or defaultSpacing
+	local safetyMargin = primarySlab:GetAttribute("SafetyMargin") or defaultMargin
+	local hoverHeight = primarySlab:GetAttribute("HoverHeight") or defaultHover
+	local explicitCount = primarySlab:GetAttribute("CoinCount")
 
-						-- Allow part-level attributes to override config if set
-						local spacing = primarySlab:GetAttribute("CoinSpacing") or defaultSpacing
-						local safetyMargin = primarySlab:GetAttribute("SafetyMargin") or defaultMargin
-						local hoverHeight = primarySlab:GetAttribute("HoverHeight") or defaultHover
-						local explicitCount = primarySlab:GetAttribute("CoinCount")
-
-						local spawnPoints = calculateSurfaceSpawnPoints(primarySlab, hoverHeight, safetyMargin, spacing, explicitCount)
-						for i, pos in ipairs(spawnPoints) do
-							coinNodeCounter += 1
-							local nodeName = string.format("%s_FloorCoin_%d", child.Name, i)
-							createCoinNode(nodeName, pos, zoneTier)
-						end
-
-						discoveredCount += 1
-						print(string.format("[CoinSpawner] Auto-discovered %s floor: spawned %d coin(s) in Zone %d (spacing: %.1f studs)", child.Name, #spawnPoints, zoneTier, spacing))
-					end
-				end
-			end
-		end
+	local spawnPoints = calculateSurfaceSpawnPoints(primarySlab, hoverHeight, safetyMargin, spacing, explicitCount)
+	for i, pos in ipairs(spawnPoints) do
+		coinNodeCounter += 1
+		local nodeName = string.format("%s_FloorCoin_%d", zoneData.ZoneModel.Name, i)
+		createCoinNode(nodeName, pos, zoneData.ZoneTier)
 	end
 
-	return discoveredCount
+	print(string.format("[CoinSpawner] Received %s floor from ZoneService: spawned %d coin(s) in Zone %d (spacing: %.1f studs)", zoneData.ZoneModel.Name, #spawnPoints, zoneData.ZoneTier, spacing))
 end
+
 
 --- Configures a spawner part: reads attributes, calculates upward surface points, and creates coins
 local function processSpawnerPart(spawnerPart: BasePart)
@@ -356,9 +298,8 @@ function CoinSpawner.Init()
 
 	local totalFound = 0
 
-	-- 1. Auto-discover all Workspace zone floors (Zone1..Zone10)
-	local autoDiscovered = discoverZoneFloors()
-	totalFound += autoDiscovered
+	-- 1. Connect to ZoneService for event-driven floor coin spawning
+	ZoneService.OnZoneFloorDiscovered(onZoneFloorDiscovered)
 
 	-- 2. Process any manually tagged parts from CollectionService
 	for _, tag in ipairs(tagsToWatch) do
