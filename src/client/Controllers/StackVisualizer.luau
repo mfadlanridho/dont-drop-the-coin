@@ -141,11 +141,12 @@ function StackVisualizer.Init()
 			end
 			local swayState = playerSwayState[player]
 
-			-- Sway intensity scales with cumulative stack weight (heavy coins wobble more)
-			local stackWeight = PlayerStackWeights[player] or (PlayerStackCounts[player] or 0)
-			local weightFactor = math.max(1, stackWeight) * 0.12
-			local targetSwayX = math.clamp(-localVel.Z * 0.04 * weightFactor, -0.75, 0.75)
-			local targetSwayZ = math.clamp(-localVel.X * 0.04 * weightFactor, -0.75, 0.75)
+			local stackCount = PlayerStackCounts[player] or 0
+			local stackWeight = PlayerStackWeights[player] or (stackCount * 1.0)
+			-- Dynamic stack factor that preserves original lively bounce while factoring weight
+			local stackFactor = math.clamp(math.max(1, stackCount) * 0.12 * (1 + math.min(stackWeight, 30) * 0.02), 1, 2.8)
+			local targetSwayX = math.clamp(-localVel.Z * 0.035 * stackFactor, -0.45, 0.45)
+			local targetSwayZ = math.clamp(-localVel.X * 0.035 * stackFactor, -0.45, 0.45)
 
 			swayState.X = swayState.X + (targetSwayX - swayState.X) * math.min(dt * 12, 1)
 			swayState.Z = swayState.Z + (targetSwayZ - swayState.Z) * math.min(dt * 12, 1)
@@ -159,9 +160,10 @@ function StackVisualizer.Init()
 				baseRotation = CFrame.new(head.Position) * CFrame.Angles(0, yaw, 0)
 			end
 
+			local MAX_TILT = math.rad(36) -- Maximum 36-degree lean: preserves lively cartoon wobble while preventing the tail effect!
 			for i, part in ipairs(partsList) do
-				local progressiveTiltX = swayState.X * (1 + (i * 0.08))
-				local progressiveTiltZ = swayState.Z * (1 + (i * 0.08))
+				local progressiveTiltX = math.clamp(swayState.X * (1 + (i * 0.04)), -MAX_TILT, MAX_TILT)
+				local progressiveTiltZ = math.clamp(swayState.Z * (1 + (i * 0.04)), -MAX_TILT, MAX_TILT)
 				local offsetY = 1.5 + (i * 0.35)
 
 				local partCFrame = baseRotation * CFrame.Angles(progressiveTiltX, 0, progressiveTiltZ) * CFrame.new(0, offsetY, 0) * CFrame.Angles(0, 0, math.rad(90))

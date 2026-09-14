@@ -38,8 +38,9 @@ local function bindGuardModel(model: Model)
 	if activeGuards[model] then return end
 	if not model:IsA("Model") then return end
 
-	local isDrone = model.Name:match("Drone") ~= nil
-	local locomotionMode = model:GetAttribute("LocomotionMode") or (if isDrone then "Fly" else "Walk")
+	-- local isDrone = model.Name:match("Drone") ~= nil
+	-- local locomotionMode = model:GetAttribute("LocomotionMode") or (if isDrone then "Fly" else "Walk")
+	local locomotionMode = "Walk"
 
 	activeGuards[model] = GuardAI.new(model, {
 		locomotionMode = locomotionMode,
