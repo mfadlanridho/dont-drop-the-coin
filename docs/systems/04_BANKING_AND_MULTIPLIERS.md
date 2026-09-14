@@ -6,11 +6,13 @@ This document specifies the multi-vault architecture, zone multiplier math, Robl
 
 ## 🎯 OBJECTIVES
 1. Manage multi-vault cashout pads across different map tiers (`Workspace.BankVaults`) via **`BankServer.luau`**.
-2. Dynamically calculate cashouts based on custom vault pad multipliers:
-   $$\text{Earned Cash} = \lfloor \text{Stack Coins} \times \text{Vault Multiplier} \rfloor$$
-3. Validate Roblox Group membership (`player:IsInGroup(Config.GROUP_ID)`) for group-exclusive vaults (`GroupMemberVault`).
-4. Update `leaderstats` (`Coins` & `Stack` IntValues) on cashout and sync starting wallet balance from ProfileStore data (`DataStoreManager.AddBankedCash`).
-5. Enforce **Safe Zone Combat Immunity** (`SafeZone` FSM State) while players stand on any vault pad to prevent PvP griefing during cashouts.
+2. Dynamically calculate cashouts factoring in each individual coin's tier multiplier from `Config.ZONE_TIERS`, combined with vault pad multipliers and group loyalty bonuses:
+   $$\text{BaseCash} = \sum_{i=1}^{\#\text{coins}} \text{Multiplier}(\text{tier}_i)$$
+   $$\text{Earned Cash} = \max\Big(1,\; \left\lfloor \text{BaseCash} \times \text{VaultMultiplier} \times \text{GroupBonus} \right\rfloor\Big)$$
+3. Validate Roblox Group membership (`player:IsInGroup(Config.GROUP_ID)`) for group-exclusive vaults (`GroupMemberVault`) and apply `Config.GROUP_CASH_MULTIPLIER` (+20%).
+4. Reset the player's head stack and immediately restore their `Humanoid.WalkSpeed` back to `16 studs/s`.
+5. Update `leaderstats` (`Coins` & `Stack` IntValues) on cashout and persist banked cash via ProfileStore (`DataStoreManager.AddBankedCash`).
+6. Enforce **Safe Zone Combat Immunity** (`SafeZone` FSM State) while players stand on any vault pad to prevent PvP griefing during cashouts.
 
 ---
 
@@ -33,6 +35,7 @@ sequenceDiagram
     actor Player
     participant Vault as BankVaultPad (Workspace.BankVaults)
     participant Server as BankServer.luau
+    participant SS as StackServer.luau
     participant FSM as PlayerFSM.luau
     participant DS as DataStoreManager.luau
     participant Client as Client Remotes
@@ -42,25 +45,30 @@ sequenceDiagram
     Server->>FSM: SetState(player, "SafeZone")
     Note over FSM: Grants PvP Combat Immunity (PlayerFSM.CanBeBumped = false)
 
-    Server->>Server: Read stackCoins = StackServer.GetStackCount(player)
-    Server->>Server: Read multiplier = pad:GetAttribute("Multiplier")
+    Server->>SS: coins = StackServer.GetCoins(player)
+    Note over Server: Sums individual tier multipliers for BaseCash
+    Server->>Server: Read vaultMultiplier = pad:GetAttribute("Multiplier")
     
-    alt Is GroupMemberVault
+    alt Is GroupMemberVault / Group Member
         Server->>Server: Verify player:IsInGroup(Config.GROUP_ID)
-        Note over Server: If false, block cashout & prompt group join
+        Note over Server: Apply Config.GROUP_CASH_MULTIPLIER (1.20x)
     end
 
-    Server->>DS: AddBankedCash(player, stackCoins * multiplier)
-    Server->>Server: StackServer.ClearStack(player)
+    Server->>Server: Calculate EarnedCash = floor(BaseCash * VaultMultiplier * GroupBonus)
+    Server->>DS: AddBankedCash(player, EarnedCash)
+    Server->>SS: ClearStack(player)
+    Note over SS: Restores Humanoid.WalkSpeed = 16 studs/s
     Server->>Server: Update leaderstats.Coins & leaderstats.Stack
-    Server->>Client: Fire Remotes.BankCoins(earnedCash, stackCoins, multiplier)
+    Server->>Client: Fire Remotes.BankCoins(earnedCash, stackCoins, totalMultiplier)
+    Server->>Client: Fire Remotes.SendNotification("COINS BANKED!")
 ```
 
 ---
 
 ## 🛠️ API CONTRACT & UI SYNC
 
-- **`BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boolean`**: Server API to cash out a player's stack at a specific vault pad with custom multipliers and group gate checks.
+- **`BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boolean`**: Server API to cash out a player's stack at a specific vault pad with compound tier multipliers, vault multipliers, and group loyalty bonuses.
+- **`BankServer.BankStack(player: Player): boolean`**: Convenience API to cash out stack at default 1.0x vault multiplier.
 - **`BankServer.UpdateLeaderstats(player: Player)`**: Updates `leaderstats.Coins` and `leaderstats.Stack` IntValues on player list.
 - **`HUDController.luau`**: Client controller listening to `leaderstats.Stack.Changed` and `leaderstats.Coins.Changed` to update `WalletFrame.CoinsLabel` (`COINS: X`) and `WalletFrame.BankedLabel` (`BANKED: $X`) in real-time.
-- **`Remotes.BankCoins` (`RemoteEvent`)**: `Server -> Client`: `BankCoins:FireClient(player, earnedCash, stackCoins, multiplier)`
+- **`Remotes.BankCoins` (`RemoteEvent`)**: `Server -> Client`: `BankCoins:FireClient(player, earnedCash, stackCoins, totalMultiplier)`

@@ -49,12 +49,26 @@ src/client/Debug/
 - **Hotkey**: Toggles panel visibility when pressing **P** (`Enum.KeyCode.P`).
 - **Throttling**: Renders on `Heartbeat` with a minimum 0.1s interval (capped at 10 FPS) to maintain high game performance.
 
-### 3. `DebugGuiBootstrap.client.luau` (System Telemetry)
-- Runs automatically when the player joins.
-- Updates baseline statistics every 0.2s:
-  - **Session Tab**: Studio Status, Player Name, User ID, Place ID, Job ID, FPS counter.
-  - **Player State Tab**: FSM State (`Normal`, `Dashing`, `Ragdolled`, `SafeZone`), Humanoid Physics State, `CanDash`, `CanBeBumped`.
-  - **Character Tab**: Character Loaded, Root Position, MoveDirection, Move Magnitude, Floor Material.
+### 3. Active In-Game Panels (`DebugController.luau`)
+When running in Studio or authorized sessions, pressing `P` opens a tabbed diagnostic panel:
+
+1. **Player State (Tab 1)**:
+   - Live `PlayerFSM` state readout (`Normal`, `Dashing`, `Ragdolled`, `SafeZone`).
+   - One-click action to reset state back to `Normal`.
+2. **Coins & Encumbrance (Tab 2)**:
+   - **Live Readouts**: `Stack Count` (coins), `Stack Weight` (units), `WalkSpeed` (studs/s and % of base), `Estimated Cash` (calculated using individual tier multipliers).
+   - **Quick Actions**:
+     - `+5 Tier 1 Coins (Bronze)` (adds lightweight coins)
+     - `+5 Tier 5 Coins (Sapphire)` (adds mid-tier coins)
+     - `+5 Tier 10 Coins (Celestial)` (adds heavyweight coins)
+     - `Hit Max Weight (Cap at 8 studs/s)` (instantly tests the 50% speed floor cap)
+     - `Trigger Loot Explosion` (drops current stack into 360-degree bouncing physics coins)
+     - `Bank Current Stack` (tests remote cashout and multiplier calculations)
+     - `Clear Stack (Reset)` (clears stack and restores base 16 studs/s speed)
+3. **Combat & Hitboxes (Tab 3)**:
+   - Toggle 3D visual wireframe gizmos for Dash Bump hitboxes.
+4. **Map Teleport (Tab 4)**:
+   - One-click instantaneous server-authoritative teleportation to Base Floor, Zones 1 through 10, or Spawn.
 
 ### 4. Network Replicated `PlayerFSM` Integration
 - **Server Replication**: `PlayerFSM.SetState(player, stateName)` updates the internal state machine on the server and sets `player:SetAttribute("FSMState", stateName)`.
