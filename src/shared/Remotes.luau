@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 
 local RemotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
 if not RemotesFolder then
-	if RunService:IsServer() then
+	if RunService:IsServer() or RunService:IsEdit() then
 		RemotesFolder = Instance.new("Folder")
 		RemotesFolder.Name = "Remotes"
 		RemotesFolder.Parent = ReplicatedStorage
@@ -34,12 +34,13 @@ local REMOTE_NAMES = {
 	"PlaySound",
 	"SendNotification",
 	"UpdateMusicVolume",
+	"DevTeleport",
 }
 
 -- Initialize Remote Events
 for _, remoteName in ipairs(REMOTE_NAMES) do
 	local event = RemotesFolder:FindFirstChild(remoteName)
-	if not event and RunService:IsServer() then
+	if not event and (RunService:IsServer() or RunService:IsEdit()) then
 		event = Instance.new("RemoteEvent")
 		event.Name = remoteName
 		event.Parent = RemotesFolder
