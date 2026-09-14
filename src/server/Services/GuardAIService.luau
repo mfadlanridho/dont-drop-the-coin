@@ -9,10 +9,9 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Logger = require(Packages:WaitForChild("LoggerModule"))
-local GuardAI = require(Shared:WaitForChild("AI"):WaitForChild("GuardAI"))
+local GuardAI = require(Packages:WaitForChild("GuardAIModule"))
 
 local log = Logger.create("Combat")
 
@@ -22,19 +21,39 @@ local CombatServer = require(Services:WaitForChild("CombatServer"))
 local GuardAIService = {}
 local activeGuards: { [Model]: any } = {}
 
+-- Unbind an NPC Model from GuardAI
+local function unbindGuardModel(model: Model)
+	local guard = activeGuards[model]
+	if guard then
+		if typeof(guard.destroy) == "function" then
+			guard:destroy()
+		end
+		activeGuards[model] = nil
+		log(string.format("[GuardAIService] Unbound GuardAI from model %s", model.Name))
+	end
+end
+
 -- Bind an NPC Model to GuardAI
 local function bindGuardModel(model: Model)
 	if activeGuards[model] then return end
 	if not model:IsA("Model") then return end
 
+	local isDrone = model.Name:match("Drone") ~= nil
+	local locomotionMode = model:GetAttribute("LocomotionMode") or (if isDrone then "Fly" else "Walk")
+
 	activeGuards[model] = GuardAI.new(model, {
+		locomotionMode = locomotionMode,
 		onAttackHit = function(victimModel: Model)
 			log(string.format("[GuardAIService] %s struck %s!", model.Name, victimModel.Name))
 			CombatServer.BumpVictimModel(nil, victimModel)
 		end,
 	})
 
-	log(string.format("[GuardAIService] Bound GuardAI to model %s", model.Name))
+	model.Destroying:Connect(function()
+		unbindGuardModel(model)
+	end)
+
+	log(string.format("[GuardAIService] Bound GuardAI to model %s (Mode: %s)", model.Name, locomotionMode))
 end
 
 -- Initialize Service & Listen to Tags/Folders
@@ -48,6 +67,11 @@ function GuardAIService.Init()
 	CollectionService:GetInstanceAddedSignal("GuardNPC"):Connect(function(instance)
 		if instance:IsA("Model") then
 			bindGuardModel(instance)
+		end
+	end)
+	CollectionService:GetInstanceRemovedSignal("GuardNPC"):Connect(function(instance)
+		if instance:IsA("Model") then
+			unbindGuardModel(instance)
 		end
 	end)
 
