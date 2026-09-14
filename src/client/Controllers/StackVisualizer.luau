@@ -16,13 +16,15 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local PlayerStackCounts: { [Player]: number } = {}
+local PlayerStackWeights: { [Player]: number } = {}
+local PlayerStackCoins: { [Player]: { number } } = {}
 local PlayerVisualModels: { [Player]: { Part } } = {}
 
 local VisualFolder: Folder
 local StackVisualizer = {}
 
 -- Create Client-Only Anchored Visual Coin Part by cloning CoinTemplate
-local function createClientCoinPart(): Part
+local function createClientCoinPart(tier: number?): Part
 	local coin = TemplateUtil.CloneCoinTemplate() :: Part
 	coin.Name = "VisualCoin"
 	coin.Size = Vector3.new(0.3, 1.8, 1.8)
@@ -31,12 +33,21 @@ local function createClientCoinPart(): Part
 	coin.CanTouch = false
 	coin.CanQuery = false
 	coin.CastShadow = false
+
+	local currentTier = tier or 1
+	local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[currentTier]
+	if tierData and tierData.Color then
+		coin.Color = tierData.Color
+	end
+
 	return coin
 end
 
 -- Update Visual Model Parts for a Player
-local function updatePlayerVisualParts(player: Player, targetCount: number)
+local function updatePlayerVisualParts(player: Player, targetCount: number, totalWeight: number?, coinsList: { number }?)
 	PlayerStackCounts[player] = targetCount
+	PlayerStackWeights[player] = totalWeight or (targetCount * 1.0)
+	PlayerStackCoins[player] = coinsList or {}
 
 	if not PlayerVisualModels[player] then
 		PlayerVisualModels[player] = {}
@@ -47,7 +58,8 @@ local function updatePlayerVisualParts(player: Player, targetCount: number)
 
 	-- Add or remove parts to match render count
 	while #partsList < renderCount do
-		local part = createClientCoinPart()
+		local nextTier = (PlayerStackCoins[player] and PlayerStackCoins[player][#partsList + 1]) or 1
+		local part = createClientCoinPart(nextTier)
 		part.Parent = VisualFolder
 		table.insert(partsList, part)
 	end
@@ -56,6 +68,17 @@ local function updatePlayerVisualParts(player: Player, targetCount: number)
 		local part = table.remove(partsList)
 		if part then
 			part:Destroy()
+		end
+	end
+
+	-- Ensure color styling matches each coin's specific tier
+	local currentCoins = PlayerStackCoins[player]
+	for i = 1, #partsList do
+		local part = partsList[i]
+		local tier = (currentCoins and currentCoins[i]) or 1
+		local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[tier]
+		if tierData and tierData.Color then
+			part.Color = tierData.Color
 		end
 	end
 end
@@ -69,6 +92,8 @@ local function clearPlayerVisualParts(player: Player)
 		PlayerVisualModels[player] = nil
 	end
 	PlayerStackCounts[player] = nil
+	PlayerStackWeights[player] = nil
+	PlayerStackCoins[player] = nil
 end
 
 function StackVisualizer.Init()
@@ -79,12 +104,12 @@ function StackVisualizer.Init()
 		VisualFolder.Parent = Workspace
 	end
 
-	-- Listen for Server Stack Updates
+	-- Listen for Server Stack Updates (Count, TotalWeight, CoinsArray)
 	local updateEvent = Remotes.Get("UpdateStack")
 	if updateEvent then
-		updateEvent.OnClientEvent:Connect(function(targetPlayer: Player, newCount: number)
+		updateEvent.OnClientEvent:Connect(function(targetPlayer: Player, newCount: number, totalWeight: number?, coinsList: { number }?)
 			if targetPlayer and targetPlayer:IsA("Player") then
-				updatePlayerVisualParts(targetPlayer, newCount)
+				updatePlayerVisualParts(targetPlayer, newCount, totalWeight, coinsList)
 			end
 		end)
 	end
@@ -116,10 +141,11 @@ function StackVisualizer.Init()
 			end
 			local swayState = playerSwayState[player]
 
-			local stackCount = PlayerStackCounts[player] or 0
-			local stackFactor = math.max(1, stackCount) * 0.15
-			local targetSwayX = math.clamp(-localVel.Z * 0.04 * stackFactor, -0.6, 0.6)
-			local targetSwayZ = math.clamp(-localVel.X * 0.04 * stackFactor, -0.6, 0.6)
+			-- Sway intensity scales with cumulative stack weight (heavy coins wobble more)
+			local stackWeight = PlayerStackWeights[player] or (PlayerStackCounts[player] or 0)
+			local weightFactor = math.max(1, stackWeight) * 0.12
+			local targetSwayX = math.clamp(-localVel.Z * 0.04 * weightFactor, -0.75, 0.75)
+			local targetSwayZ = math.clamp(-localVel.X * 0.04 * weightFactor, -0.75, 0.75)
 
 			swayState.X = swayState.X + (targetSwayX - swayState.X) * math.min(dt * 12, 1)
 			swayState.Z = swayState.Z + (targetSwayZ - swayState.Z) * math.min(dt * 12, 1)

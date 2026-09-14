@@ -77,10 +77,11 @@ function CoinService.CollectDroppedLoot(player: Player, coin: BasePart, touchCon
 		touchConnection:Disconnect()
 	end
 
-	local newStack = StackServer.AddCoin(player, 1)
+	local zoneTier = coin:GetAttribute("ZoneTier") or 1
+	local newStack = StackServer.AddCoin(player, zoneTier, 1)
 	playPickupAudio(player, coin)
 
-	print(string.format("[CoinService] %s collected Dropped Loot (New Stack: %d)", player.Name, newStack))
+	print(string.format("[CoinService] %s collected Dropped Loot Tier %d (New Stack: %d)", player.Name, zoneTier, newStack))
 
 	coin:Destroy()
 	return true

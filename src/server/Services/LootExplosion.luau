@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local TemplateUtil = require(Shared:WaitForChild("Utils"):WaitForChild("TemplateUtil"))
 
 local Services = script.Parent
@@ -21,12 +22,20 @@ local DroppedCoinsFolder: Folder
 local LootExplosion = {}
 
 -- Create Unanchored Dropped Coin Part by cloning CoinTemplate
-local function createDroppedCoin(): Part
+local function createDroppedCoin(zoneTier: number): Part
 	local coin = TemplateUtil.CloneCoinTemplate() :: Part
 	coin.Name = "DroppedLootCoin"
 	coin.Anchored = false -- Physical unanchored bouncing part!
 	coin.CanCollide = true
 	coin.CanTouch = true
+	coin:SetAttribute("ZoneTier", zoneTier)
+
+	-- Apply Zone Tier Color if configured
+	local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[zoneTier]
+	if tierData and tierData.Color then
+		coin.Color = tierData.Color
+	end
+
 	return coin
 end
 
@@ -37,16 +46,22 @@ function LootExplosion.ScatterCoins(player: Player)
 	local hrp = character:FindFirstChild("HumanoidRootPart") :: Part
 	if not hrp then return end
 
-	local currentStack = StackServer.GetStackCount(player)
-	if currentStack <= 0 then return end
+	local coins = StackServer.GetCoins(player)
+	local coinsToScatter = #coins
+	if coinsToScatter <= 0 then
+		coinsToScatter = StackServer.GetStackCount(player)
+		if coinsToScatter <= 0 then return end
+	end
 
-	local coinsToScatter = currentStack
+	-- Clear player stack (restores normal WalkSpeed)
 	StackServer.ClearStack(player)
 
 	local originPos = hrp.Position + Vector3.new(0, 4, 0)
+	local despawnTime = Config.DESPAWN_DROPPED_COIN_TIME or 15
 
 	for i = 1, coinsToScatter do
-		local coin = createDroppedCoin()
+		local zoneTier = coins[i] or 1
+		local coin = createDroppedCoin(zoneTier)
 		coin.Position = originPos
 		coin.Parent = DroppedCoinsFolder
 
@@ -73,8 +88,8 @@ function LootExplosion.ScatterCoins(player: Player)
 			end)
 		end)
 
-		-- Despawn timer (15 seconds)
-		task.delay(15, function()
+		-- Despawn timer
+		task.delay(despawnTime, function()
 			if coin and coin.Parent then
 				if touchConnection then
 					touchConnection:Disconnect()
