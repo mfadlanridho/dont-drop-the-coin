@@ -13,11 +13,16 @@ Config.AUTO_SAVE_INTERVAL = 300 -- Save session data every 5 minutes
 
 -- Default Player Data Schema
 Config.DEFAULT_DATA = {
-	DataVersion = 2,
+	DataVersion = 3,
 	Coins = 0,
 	TotalBanked = 0,
 	EquippedSkin = "Default",
 	OwnedPasses = {},
+	Upgrades = {
+		SpeedLevel = 1,
+		StrengthLevel = 1,
+		JumpLevel = 1,
+	},
 	LastSaved = 0,
 }
 
@@ -108,6 +113,44 @@ Config.ENCUMBRANCE = {
 	BASE_WALKSPEED = 16, -- Standard Roblox WalkSpeed (studs/sec)
 	MIN_WALKSPEED = 8,   -- Minimum WalkSpeed cap (prevents impossible jumps)
 	WEIGHT_PENALTY_FACTOR = 0.02, -- Speed penalty per unit of total stack weight (25 total weight = 50% reduction)
+}
+
+-- Permanent Player Stat Upgrades (Speed, Strength, Jump)
+Config.UPGRADES = {
+	Speed = {
+		DisplayName = "Speed",
+		Icon = "👟",
+		StatKey = "SpeedLevel",
+		Levels = {
+			[1] = { Cost = 0,  BonusSpeed = 0 },
+			[2] = { Cost = 5,  BonusSpeed = 10 },
+			[3] = { Cost = 15, BonusSpeed = 20 },
+			[4] = { Cost = 35, BonusSpeed = 30 },
+			[5] = { Cost = 75, BonusSpeed = 40 },
+		},
+	},
+	Strength = {
+		DisplayName = "Strength",
+		Icon = "🏋️",
+		StatKey = "StrengthLevel",
+		Levels = { -- EffectiveWeight = ActualCoinWeight * (1 - WeightDiscount)
+			[1] = { Cost = 0,  WeightDiscount = 0.00 },
+			[2] = { Cost = 75, WeightDiscount = 0.10 },
+			[3] = { Cost = 20, WeightDiscount = 0.20 },
+			[4] = { Cost = 45, WeightDiscount = 0.35 },
+			[5] = { Cost = 90, WeightDiscount = 0.50 },
+		},
+	},
+	Jump = {
+		DisplayName = "Jump",
+		Icon = "🦘",
+		StatKey = "JumpLevel",
+		Levels = {
+			[1] = { Cost = 0,  BonusJump = 5 },
+			[2] = { Cost = 10, BonusJump = 10 },
+			[3] = { Cost = 30, BonusJump = 15 },
+		},
+	},
 }
 
 -- Coin & Stacking Mechanics

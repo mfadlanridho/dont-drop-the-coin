@@ -24,6 +24,17 @@ type StackData = {
 local PlayerStacks: { [number]: StackData } = {}
 local StackServer = {}
 
+local _UpgradeService
+local function getUpgradeService()
+	if not _UpgradeService then
+		local found = script.Parent:FindFirstChild("UpgradeService")
+		if found then
+			_UpgradeService = require(found)
+		end
+	end
+	return _UpgradeService
+end
+
 --- Resolves the weight of a coin based on its zone tier in Config
 local function getCoinWeight(tier: number): number
 	local tierData = Config.ZONE_TIERS and Config.ZONE_TIERS[tier]
@@ -33,15 +44,30 @@ local function getCoinWeight(tier: number): number
 	return 1.0
 end
 
---- Calculates the encumbered WalkSpeed given the player's total stack weight
-local function calculateWalkSpeed(totalWeight: number): number
+--- Calculates the encumbered WalkSpeed given the player's total stack weight and active upgrades
+local function calculateWalkSpeed(player: Player?, totalWeight: number): number
 	local encCfg = Config.ENCUMBRANCE or {}
 	local baseSpeed = encCfg.BASE_WALKSPEED or 16
 	local minSpeed = encCfg.MIN_WALKSPEED or 8
 	local penaltyFactor = encCfg.WEIGHT_PENALTY_FACTOR or 0.02
 
-	local speed = baseSpeed * (1 - (totalWeight * penaltyFactor))
-	return math.clamp(speed, minSpeed, baseSpeed)
+	local bonusSpeed = 0
+	local weightDiscount = 0
+
+	if player then
+		local upgradeSvc = getUpgradeService()
+		if upgradeSvc and upgradeSvc.GetModifiers then
+			local mods = upgradeSvc.GetModifiers(player)
+			bonusSpeed = mods.BonusSpeed or 0
+			weightDiscount = mods.WeightDiscount or 0
+		end
+	end
+
+	local effectiveBaseSpeed = baseSpeed + bonusSpeed
+	local effectiveWeight = totalWeight * (1 - weightDiscount)
+
+	local speed = effectiveBaseSpeed * (1 - (effectiveWeight * penaltyFactor))
+	return math.clamp(speed, minSpeed, effectiveBaseSpeed)
 end
 
 --- Applies the encumbered WalkSpeed to the player's Humanoid
@@ -50,9 +76,16 @@ local function applyEncumbranceSpeed(player: Player, totalWeight: number)
 	if character then
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
-			humanoid.WalkSpeed = calculateWalkSpeed(totalWeight)
+			humanoid.WalkSpeed = calculateWalkSpeed(player, totalWeight)
 		end
 	end
+end
+
+--- Re-applies encumbrance WalkSpeed for a player using current stack weight and upgrades
+function StackServer.RecalculateEncumbrance(player: Player)
+	local stackData = PlayerStacks[player.UserId]
+	local totalWeight = stackData and stackData.TotalWeight or 0
+	applyEncumbranceSpeed(player, totalWeight)
 end
 
 --- Helper to get or create stack entry for a player

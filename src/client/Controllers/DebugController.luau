@@ -129,6 +129,9 @@ function DebugController.Init()
 				local speedPct = math.round((currentSpeed / 16) * 100)
 				DebugGuiModule.setEntry("Coins", "WalkSpeed", "WalkSpeed:", string.format("%.1f studs/s (%d%%)", currentSpeed, speedPct))
 			end)
+			humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(function()
+				DebugGuiModule.setEntry("Upgrades", "LiveJump", "Humanoid JumpHeight:", string.format("%.2f studs", humanoid.JumpHeight))
+			end)
 		end
 	end
 
@@ -137,8 +140,95 @@ function DebugController.Init()
 		bindSpeedListener(LocalPlayer.Character)
 	end
 
-	-- 3. Register "Combat & Hitboxes" Debug Panel Tab (Order 3)
-	local combatPanel = DebugGuiModule.registerPanel("Combat", "Combat & Hitboxes", 3)
+	-- 3. Register "Upgrades & Stats" Debug Panel Tab (Order 3)
+	local upgradesPanel = DebugGuiModule.registerPanel("Upgrades", "Upgrades & Stats", 3)
+	local buyUpgradeRemote = Remotes.Get("BuyUpgrade")
+	local updateUpgradesRemote = Remotes.Get("UpdateUpgrades")
+
+	local currentUpgrades = {
+		SpeedLevel = 1,
+		StrengthLevel = 1,
+		JumpLevel = 1,
+	}
+
+	local function renderUpgradeEntries()
+		local speedCfg = Config.UPGRADES.Speed
+		local strengthCfg = Config.UPGRADES.Strength
+		local jumpCfg = Config.UPGRADES.Jump
+
+		local speedLvl = currentUpgrades.SpeedLevel or 1
+		local strengthLvl = currentUpgrades.StrengthLevel or 1
+		local jumpLvl = currentUpgrades.JumpLevel or 1
+
+		local speedData = speedCfg.Levels[speedLvl]
+		local strengthData = strengthCfg.Levels[strengthLvl]
+		local jumpData = jumpCfg.Levels[jumpLvl]
+
+		local speedBonus = (speedData and speedData.BonusSpeed) or 0
+		local discountPct = math.round(((strengthData and strengthData.WeightDiscount) or 0) * 100)
+		local jumpBonus = (jumpData and jumpData.BonusJump) or 0
+
+		local maxSpeed = #speedCfg.Levels
+		local maxStrength = #strengthCfg.Levels
+		local maxJump = #jumpCfg.Levels
+
+		DebugGuiModule.setEntry("Upgrades", "Speed", "Speed Level:", string.format("Lv. %d / %d (+%g WalkSpeed)", speedLvl, maxSpeed, speedBonus))
+		DebugGuiModule.setEntry("Upgrades", "Strength", "Strength Level:", string.format("Lv. %d / %d (-%d%% Weight Penalty)", strengthLvl, maxStrength, discountPct))
+		DebugGuiModule.setEntry("Upgrades", "Jump", "Jump Level:", string.format("Lv. %d / %d (+%g Jump Height)", jumpLvl, maxJump, jumpBonus))
+
+		local character = LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			DebugGuiModule.setEntry("Upgrades", "LiveJump", "Humanoid JumpHeight:", string.format("%.2f studs", humanoid.JumpHeight))
+		end
+
+		-- Action buttons with live cost & level
+		local nextSpeed = speedCfg.Levels[speedLvl + 1]
+		local speedBtnText = nextSpeed and string.format("Buy Speed Lv. %d ($%d)", speedLvl + 1, nextSpeed.Cost) or "Speed (MAXED)"
+		DebugGuiModule.setAction("Upgrades", "BuySpeed", speedBtnText, function()
+			if buyUpgradeRemote and speedLvl < maxSpeed then
+				buyUpgradeRemote:FireServer("Speed")
+			end
+		end, 1)
+
+		local nextStrength = strengthCfg.Levels[strengthLvl + 1]
+		local strengthBtnText = nextStrength and string.format("Buy Strength Lv. %d ($%d)", strengthLvl + 1, nextStrength.Cost) or "Strength (MAXED)"
+		DebugGuiModule.setAction("Upgrades", "BuyStrength", strengthBtnText, function()
+			if buyUpgradeRemote and strengthLvl < maxStrength then
+				buyUpgradeRemote:FireServer("Strength")
+			end
+		end, 2)
+
+		local nextJump = jumpCfg.Levels[jumpLvl + 1]
+		local jumpBtnText = nextJump and string.format("Buy Jump Lv. %d ($%d)", jumpLvl + 1, nextJump.Cost) or "Jump (MAXED)"
+		DebugGuiModule.setAction("Upgrades", "BuyJump", jumpBtnText, function()
+			if buyUpgradeRemote and jumpLvl < maxJump then
+				buyUpgradeRemote:FireServer("Jump")
+			end
+		end, 3)
+
+		DebugGuiModule.setAction("Upgrades", "ResetUpgrades", "Dev: Reset All Upgrades (Lv. 1)", function()
+			if buyUpgradeRemote then
+				buyUpgradeRemote:FireServer("Reset")
+			end
+		end, 4)
+	end
+
+	renderUpgradeEntries()
+
+	if updateUpgradesRemote then
+		updateUpgradesRemote.OnClientEvent:Connect(function(newUpgrades)
+			if typeof(newUpgrades) == "table" then
+				currentUpgrades.SpeedLevel = newUpgrades.SpeedLevel or currentUpgrades.SpeedLevel
+				currentUpgrades.StrengthLevel = newUpgrades.StrengthLevel or currentUpgrades.StrengthLevel
+				currentUpgrades.JumpLevel = newUpgrades.JumpLevel or currentUpgrades.JumpLevel
+				renderUpgradeEntries()
+			end
+		end)
+	end
+
+	-- 4. Register "Combat & Hitboxes" Debug Panel Tab (Order 4)
+	local combatPanel = DebugGuiModule.registerPanel("Combat", "Combat & Hitboxes", 4)
 	DebugGuiModule.setEntry("Combat", "HitboxStatus", "3D Hitbox Wireframes:", "HIDDEN")
 
 	-- Action: Toggle 3D Hitbox Wireframes
@@ -148,8 +238,8 @@ function DebugController.Init()
 		DebugGuiModule.setEntry("Combat", "HitboxStatus", "3D Hitbox Wireframes:", cfg.AlwaysShowHitboxes and "VISIBLE" or "HIDDEN")
 	end)
 
-	-- 4. Register "Map Teleport" Debug Panel Tab (Order 4)
-	local teleportPanel = DebugGuiModule.registerPanel("Teleport", "Map Teleport", 4)
+	-- 5. Register "Map Teleport" Debug Panel Tab (Order 5)
+	local teleportPanel = DebugGuiModule.registerPanel("Teleport", "Map Teleport", 5)
 	local devTeleportRemote = Remotes.Get("DevTeleport")
 
 	local function requestTeleport(destKey: string)

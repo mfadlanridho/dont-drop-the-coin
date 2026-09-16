@@ -36,6 +36,8 @@ local REMOTE_NAMES = {
 	"UpdateMusicVolume",
 	"DevTeleport",
 	"DevStackAction",
+	"BuyUpgrade",
+	"UpdateUpgrades",
 }
 
 -- Initialize Remote Events
