@@ -33,7 +33,6 @@ local CONTROLLER_ORDER = {
 	"InputController",
 	"DashBumpGizmoController",
 	"DebugController",
-	"DisappearingPlatformController",
 }
 
 for _, controllerName in ipairs(CONTROLLER_ORDER) do

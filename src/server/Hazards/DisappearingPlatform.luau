@@ -46,11 +46,11 @@ function DisappearingPlatform.new(instance: Instance): DisappearingPlatformInsta
 	local self = setmetatable({}, DisappearingPlatform) :: any
 	self.instance = instance
 
-	-- Resolve target parts (single BasePart or all BaseParts inside a Model)
+	-- Resolve target parts (single BasePart or all BaseParts inside a Model / Folder)
 	self.targetParts = {}
 	if instance:IsA("BasePart") then
 		table.insert(self.targetParts, instance)
-	elseif instance:IsA("Model") then
+	elseif instance:IsA("Model") or instance:IsA("Folder") then
 		for _, desc in ipairs(instance:GetDescendants()) do
 			if desc:IsA("BasePart") then
 				table.insert(self.targetParts, desc)
@@ -58,8 +58,13 @@ function DisappearingPlatform.new(instance: Instance): DisappearingPlatformInsta
 		end
 	end
 
-	if #self.targetParts == 0 then
-		error(string.format("[DisappearingPlatform] No BaseParts found on %s", instance.Name))
+	self.originalTransparencies = {}
+	self.originalCanCollides = {}
+	self.originalColors = {}
+	for _, part in ipairs(self.targetParts) do
+		self.originalTransparencies[part] = part.Transparency
+		self.originalCanCollides[part] = part.CanCollide
+		self.originalColors[part] = part.Color
 	end
 
 	-- Configuration (Studio Attribute overrides > Config defaults)
@@ -118,6 +123,11 @@ function DisappearingPlatform:trigger(character: Model, player: Player?)
 
 	-- 1. Warning State
 	self.instance:SetAttribute("PlatformState", "Warning")
+	for _, part in ipairs(self.targetParts) do
+		if part and part.Parent then
+			part.Color = self.warningColor
+		end
+	end
 	self.Triggered:Fire(character, player)
 
 	task.wait(self.warningDelay)
@@ -125,6 +135,12 @@ function DisappearingPlatform:trigger(character: Model, player: Player?)
 
 	-- 2. Vanished State
 	self.instance:SetAttribute("PlatformState", "Vanished")
+	for _, part in ipairs(self.targetParts) do
+		if part and part.Parent then
+			part.CanCollide = false
+			part.Transparency = 1
+		end
+	end
 	log(string.format("[DisappearingPlatform] %s vanished!", self.instance.Name))
 	self.Vanished:Fire()
 
@@ -133,6 +149,13 @@ function DisappearingPlatform:trigger(character: Model, player: Player?)
 
 	-- 3. Regenerated / Stable State
 	self.instance:SetAttribute("PlatformState", "Stable")
+	for _, part in ipairs(self.targetParts) do
+		if part and part.Parent then
+			part.CanCollide = (self.originalCanCollides[part] == true)
+			part.Transparency = self.originalTransparencies[part] or 0
+			part.Color = self.originalColors[part] or part.Color
+		end
+	end
 	log(string.format("[DisappearingPlatform] %s regenerated successfully.", self.instance.Name))
 	self.Regenerated:Fire()
 
