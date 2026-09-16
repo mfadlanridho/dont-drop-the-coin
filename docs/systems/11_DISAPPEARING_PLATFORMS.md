@@ -14,22 +14,20 @@ This document specifies the architecture, networking, client-side collision mech
 
 ## 🏗️ DIRECTORY ARCHITECTURE
 
-```
 src/
 ├── shared/
 │   └── Config/
 │       └── init.luau                          <-- Global hazard timings & default colors
 │
-├── server/
-│   ├── Hazards/
-│   │   └── DisappearingPlatform.luau          <-- Server OOP state machine & debounce
-│   └── Services/
-│       └── DisappearingPlatformService.luau   <-- Workspace folder & CollectionService tag binder
-│
-└── client/
-    └── Controllers/
-        └── DisappearingPlatformController.luau<-- Local tweens, 0ms CanCollide = false, Freefall trigger
+└── server/
+    ├── Hazards/
+    │   └── DisappearingPlatform.luau          <-- Server OOP state machine, color & collision lifecycle
+    └── Services/
+        └── HazardService.luau                 <-- Central hazard orchestrator (replaces DisappearingPlatformService)
 ```
+
+> [!NOTE]
+> As of System 14 consolidation, disappearing platforms are orchestrated by [`HazardService.luau`](../systems/14_HAZARD_ENGINE_AND_PLATFORMS.md) with full server-authoritative collision and visibility lifecycle.
 
 ---
 

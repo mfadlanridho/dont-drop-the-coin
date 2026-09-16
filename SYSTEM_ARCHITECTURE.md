@@ -131,6 +131,7 @@ stateDiagram-v2
 ## 📚 5. SYSTEM SPECIFICATIONS
 
 For full technical specifications per system, refer to:
+- [Environmental Hazards & Moving Platforms Architecture](docs/systems/14_HAZARD_ENGINE_AND_PLATFORMS.md)
 - [Tower Zone Discovery & Arena Pub/Sub Engine](docs/systems/13_ZONE_SERVICE.md)
 - [Universal Guard AI Engine Architecture](docs/systems/12_GUARD_AI_ENGINE.md)
 - [System 11: Disappearing Platforms Architecture](docs/systems/11_DISAPPEARING_PLATFORMS.md)
