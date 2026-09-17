@@ -33,10 +33,10 @@ local function processSocket(socket: Instance, zoneFolder: Instance)
 	local hazardType = socket:GetAttribute("HazardType")
 	log(string.format("[HazardService] Processing socket: %s (HazardType: %s) in %s", socket.Name, tostring(hazardType), zoneFolder.Name))
 
-	if hazardType == "RotatingPlatform" and socket:IsA("BasePart") then
-		-- Search for nearby route geometry (e.g. CranePlatform)
+	if (hazardType == "RotatingPlatform" or hazardType == "RotatingArms") and socket:IsA("BasePart") then
 		local route = zoneFolder:FindFirstChild("Route")
-		local targetFolder = route and route:FindFirstChild("CranePlatform")
+		-- Search for target route folder: CranePlatform in Zone 2, RotatingArmCrossing in Zone 4, or matching by proximity
+		local targetFolder = route and (route:FindFirstChild("RotatingArmCrossing") or route:FindFirstChild("CranePlatform"))
 		if targetFolder then
 			local hazardInstance = RotatingPlatform.new(socket, targetFolder)
 			if hazardInstance then
@@ -82,6 +82,17 @@ local function scanAllSockets()
 	for _, desc in ipairs(Workspace:GetChildren()) do
 		if desc.Name:match("^Zone%d+") then
 			local zoneFolder = desc
+
+			-- Mark static wall / barrier geometry with MapGeometry collision group so physics hazards don't get snagged
+			local wallsFolder = zoneFolder:FindFirstChild("Walls")
+			if wallsFolder then
+				for _, wallPart in ipairs(wallsFolder:GetChildren()) do
+					if wallPart:IsA("BasePart") then
+						wallPart.CollisionGroup = "MapGeometry"
+					end
+				end
+			end
+
 			-- Check both naming conventions (FutureHazardSockets and FutureHazards)
 			local socketsFolder = zoneFolder:FindFirstChild("FutureHazardSockets") or zoneFolder:FindFirstChild("FutureHazards")
 			if socketsFolder then

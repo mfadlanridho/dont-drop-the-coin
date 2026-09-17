@@ -7,12 +7,23 @@
     Location: src/server/Hazards/RotatingPlatform.luau
 --]]
 
+local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Logger = require(Packages:WaitForChild("LoggerModule") :: ModuleScript)
 
 local log = Logger.create("Hazards")
+
+-- Ensure collision groups exist so moving hazard parts never lock against static map geometry (walls/columns),
+-- while still colliding normally with players and default objects.
+pcall(function()
+	PhysicsService:RegisterCollisionGroup("MovingHazards")
+	PhysicsService:RegisterCollisionGroup("MapGeometry")
+	PhysicsService:CollisionGroupSetCollidable("MovingHazards", "MapGeometry", false)
+	PhysicsService:CollisionGroupSetCollidable("MovingHazards", "Default", true)
+	PhysicsService:CollisionGroupSetCollidable("MapGeometry", "Default", true)
+end)
 
 local RotatingPlatform = {}
 RotatingPlatform.__index = RotatingPlatform
@@ -63,18 +74,31 @@ function RotatingPlatform.new(socket: BasePart, modelOrFolder: Instance): Rotati
 	hubPart.Anchored = true
 	hubPart.CanCollide = true
 
-	-- Collect all rotating pieces (RP_Disc, RP_Body, RP_Ring, etc.)
-	local discPart: BasePart? = modelOrFolder:FindFirstChild("RP_Disc") :: any
+	-- Collect only parts associated with this rotating hazard (e.g. RP_* or RA_*)
+	-- This prevents grabbing unrelated parts (e.g. CP_LiftDeck parts from VerticalLift or CP_Crane parts)
+	local prefixMatch: string? = nil
+	if hubPart.Name:match("^RP_") then
+		prefixMatch = "^RP_"
+	elseif hubPart.Name:match("^RA_") then
+		prefixMatch = "^RA_"
+	end
+
+	local primaryMovingPart: BasePart? = nil
 	for _, child in ipairs(modelOrFolder:GetChildren()) do
-		if child:IsA("BasePart") and child ~= hubPart and child.Name:match("^RP_") then
-			table.insert(self.movingParts, child)
-			if not discPart then
-				discPart = child
+		if child:IsA("BasePart") and child ~= hubPart then
+			if not prefixMatch or child.Name:match(prefixMatch) then
+				table.insert(self.movingParts, child)
+				-- Prefer parts designated as Disc or Spine or Deck as the primary constraint anchor
+				if not primaryMovingPart then
+					primaryMovingPart = child
+				elseif child.Name:match("Disc") or child.Name:match("Spine") or child.Name:match("Deck") then
+					primaryMovingPart = child
+				end
 			end
 		end
 	end
 
-	if not discPart then
+	if not primaryMovingPart then
 		warn(string.format("[RotatingPlatform] No rotating parts found for %s", socket.Name))
 		return nil
 	end
@@ -92,28 +116,30 @@ function RotatingPlatform.new(socket: BasePart, modelOrFolder: Instance): Rotati
 
 	local att1 = Instance.new("Attachment")
 	att1.Name = "RotatingPlatform_Att1"
-	att1.Parent = discPart
+	att1.Parent = primaryMovingPart
 	att1.WorldCFrame = socket.CFrame
 	att1.WorldAxis = worldAxis
 
-	-- Weld all moving parts to discPart so they rotate together as a rigid assembly
+	-- Weld all moving parts to primaryMovingPart so they rotate together as a rigid assembly
+	-- NOTE: We preserve each part's designer-configured CanCollide setting so internal frames/spines
+	-- (which the builder set to CanCollide = false) don't snag or catch against adjacent level geometry!
 	for _, part in ipairs(self.movingParts) do
-		if part ~= discPart then
+		part.CollisionGroup = "MovingHazards"
+		if part ~= primaryMovingPart then
 			part.Anchored = false
-			part.CanCollide = true
 			part.Massless = false
 
 			local weld = Instance.new("WeldConstraint")
 			weld.Name = "RP_Weld_" .. part.Name
-			weld.Part0 = discPart
+			weld.Part0 = primaryMovingPart
 			weld.Part1 = part
-			weld.Parent = discPart
+			weld.Parent = primaryMovingPart
 		end
 	end
 
-	-- Unanchor discPart so it can be driven by the constraint
-	discPart.Anchored = false
-	discPart.CanCollide = true
+	-- Unanchor primaryMovingPart so it can be driven by the constraint
+	primaryMovingPart.Anchored = false
+	primaryMovingPart.CollisionGroup = "MovingHazards"
 
 	-- Create motorized HingeConstraint
 	local hinge = Instance.new("HingeConstraint")
@@ -123,7 +149,7 @@ function RotatingPlatform.new(socket: BasePart, modelOrFolder: Instance): Rotati
 	hinge.ActuatorType = Enum.ActuatorType.Motor
 	hinge.MotorMaxTorque = 100000000
 	hinge.AngularVelocity = self.speed
-	hinge.Parent = discPart
+	hinge.Parent = primaryMovingPart
 
 	self.hinge = hinge
 	self.motorAttachment0 = att0

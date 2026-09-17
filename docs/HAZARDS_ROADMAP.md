@@ -53,7 +53,7 @@ This tracker catalogs every environmental hazard, obstacle, and mechanical socke
 | Hazard Name | Socket / Anchor | Attributes | Mechanism & Description | Status |
 | :--- | :--- | :--- | :--- | :---: |
 | **Giant Gear** | `SOCKET_GiantGear` | `Diameter: 18`<br>`HazardType: RotatingGear` | Massive 18-stud vertical spinning cogwheel obstructing the path. | ⚪ Backlog |
-| **Rotating Sweep Arms**| `SOCKET_RotatingArms` | `HubY: 225`<br>`HazardType: RotatingArms` | Horizontal beam arms sweeping across platform height; must jump over. | ⚪ Backlog |
+| **Rotating Sweep Arms**| `SOCKET_RotatingArms` | `HubY: 225`<br>`HazardType: RotatingArms` | Horizontal beam arms sweeping across platform height; must jump over. | ✅ **LIVE** |
 | **Moving Platforms** | `SOCKET_MovingPlatforms` | `HazardType: MovingPlatforms` | Horizontally translating platform bridges across machinery chasm. | ⚪ Backlog |
 | **Vertical Carriages** | `SOCKET_VerticalCarriages` | `HazardType: VerticalCarriages` | Counterbalanced vertical lift carriage pair. | ⚪ Backlog |
 
