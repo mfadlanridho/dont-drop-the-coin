@@ -22,6 +22,7 @@ local HazardsFolder = Server:WaitForChild("Hazards")
 local RotatingPlatform = require(HazardsFolder:WaitForChild("RotatingPlatform") :: ModuleScript)
 local VerticalLift = require(HazardsFolder:WaitForChild("VerticalLift") :: ModuleScript)
 local DisappearingPlatform = require(HazardsFolder:WaitForChild("DisappearingPlatform") :: ModuleScript)
+local HazardDebugVisualizer = require(HazardsFolder:WaitForChild("HazardDebugVisualizer") :: ModuleScript)
 
 local HazardService = {}
 local activeHazards: { [Instance]: any } = {}
@@ -41,7 +42,10 @@ local function processSocket(socket: Instance, zoneFolder: Instance)
 			local hazardInstance = RotatingPlatform.new(socket, targetFolder)
 			if hazardInstance then
 				activeHazards[socket] = hazardInstance
+				HazardDebugVisualizer.attach(socket, hazardType, hazardInstance, targetFolder)
 			end
+		else
+			HazardDebugVisualizer.attach(socket, hazardType, nil, nil)
 		end
 
 	elseif hazardType == "VerticalLift" and socket:IsA("BasePart") then
@@ -51,7 +55,10 @@ local function processSocket(socket: Instance, zoneFolder: Instance)
 			local hazardInstance = VerticalLift.new(socket, targetFolder)
 			if hazardInstance then
 				activeHazards[socket] = hazardInstance
+				HazardDebugVisualizer.attach(socket, hazardType, hazardInstance, targetFolder)
 			end
+		else
+			HazardDebugVisualizer.attach(socket, hazardType, nil, nil)
 		end
 
 	elseif socket.Name == "DisappearingTileGroup" or hazardType == "DisappearingTile" then
@@ -73,6 +80,14 @@ local function processSocket(socket: Instance, zoneFolder: Instance)
 			for _, tile in ipairs(targetContainer:GetChildren()) do
 				CollectionService:AddTag(tile, "Hazard_DisappearingPlatform")
 			end
+			HazardDebugVisualizer.attach(socket, "DisappearingTiles", true, targetContainer)
+		else
+			HazardDebugVisualizer.attach(socket, "DisappearingTiles", nil, nil)
+		end
+	else
+		-- Any other socket in the zone gets an UNBOUND / BACKLOG badge for visibility
+		if socket:IsA("BasePart") then
+			HazardDebugVisualizer.attach(socket, tostring(hazardType or "Unknown"), nil, nil)
 		end
 	end
 end
