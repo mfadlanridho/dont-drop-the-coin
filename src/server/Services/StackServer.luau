@@ -15,6 +15,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 
+local Services = script.Parent
+local UpgradeService = require(Services:WaitForChild("UpgradeService"))
+
 type StackData = {
 	Count: number,
 	TotalWeight: number,
@@ -23,17 +26,6 @@ type StackData = {
 
 local PlayerStacks: { [number]: StackData } = {}
 local StackServer = {}
-
-local _UpgradeService
-local function getUpgradeService()
-	if not _UpgradeService then
-		local found = script.Parent:FindFirstChild("UpgradeService")
-		if found then
-			_UpgradeService = require(found)
-		end
-	end
-	return _UpgradeService
-end
 
 --- Resolves the weight of a coin based on its zone tier in Config
 local function getCoinWeight(tier: number): number
@@ -55,12 +47,9 @@ local function calculateWalkSpeed(player: Player?, totalWeight: number): number
 	local weightDiscount = 0
 
 	if player then
-		local upgradeSvc = getUpgradeService()
-		if upgradeSvc and upgradeSvc.GetModifiers then
-			local mods = upgradeSvc.GetModifiers(player)
-			bonusSpeed = mods.BonusSpeed or 0
-			weightDiscount = mods.WeightDiscount or 0
-		end
+		local mods = UpgradeService.GetModifiers(player)
+		bonusSpeed = mods.BonusSpeed or 0
+		weightDiscount = mods.WeightDiscount or 0
 	end
 
 	local effectiveBaseSpeed = baseSpeed + bonusSpeed
@@ -237,6 +226,11 @@ end
 function StackServer.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		PlayerStacks[player.UserId] = nil
+	end)
+
+	-- Recalculate encumbrance whenever player upgrades speed, strength, or jump
+	UpgradeService.OnStatsChanged:Connect(function(player: Player)
+		StackServer.RecalculateEncumbrance(player)
 	end)
 
 	local function onCharacterSpawned(player: Player)

@@ -13,12 +13,15 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Signal = require(Packages:WaitForChild("SignalModule"))
+
 local Services = script.Parent
 local DataStoreManager = require(Services:WaitForChild("DataStoreManager"))
 local BankServer = require(Services:WaitForChild("BankServer"))
-local StackServer = require(Services:WaitForChild("StackServer"))
 
 local UpgradeService = {}
+UpgradeService.OnStatsChanged = Signal.new() :: Signal.Signal<Player>
 
 --- Returns the active upgrade levels for a player
 function UpgradeService.GetUpgrades(player: Player): { [string]: number }
@@ -67,8 +70,8 @@ function UpgradeService.ApplyStats(player: Player)
 	humanoid.JumpHeight = baseJumpHeight + mods.BonusJump
 	humanoid.JumpPower = baseJumpPower + (mods.BonusJump * 6)
 
-	-- Recalculate WalkSpeed taking into account both current stack weight and upgrades
-	StackServer.RecalculateEncumbrance(player)
+	-- Notify listeners (e.g. StackServer) that stats changed to recalculate encumbrance WalkSpeed
+	UpgradeService.OnStatsChanged:Fire(player)
 end
 
 --- Purchases the next tier for a given stat category
