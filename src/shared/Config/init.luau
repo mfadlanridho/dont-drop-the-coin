@@ -23,6 +23,10 @@ Config.DEFAULT_DATA = {
 		StrengthLevel = 1,
 		JumpLevel = 1,
 	},
+	EquippedAbility = "speed_surge",
+	UnlockedAbilities = {
+		speed_surge = true,
+	},
 	LastSaved = 0,
 }
 

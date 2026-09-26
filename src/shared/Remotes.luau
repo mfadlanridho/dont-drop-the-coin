@@ -38,6 +38,9 @@ local REMOTE_NAMES = {
 	"DevStackAction",
 	"BuyUpgrade",
 	"UpdateUpgrades",
+	"UseAbility",
+	"ApplyEffect",
+	"UpdateAbilityState",
 }
 
 -- Initialize Remote Events
