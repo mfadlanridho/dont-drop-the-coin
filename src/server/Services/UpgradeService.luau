@@ -18,7 +18,6 @@ local Signal = require(Packages:WaitForChild("SignalModule"))
 
 local Services = script.Parent
 local DataStoreManager = require(Services:WaitForChild("DataStoreManager"))
-local BankServer = require(Services:WaitForChild("BankServer"))
 
 local UpgradeService = {}
 UpgradeService.OnStatsChanged = Signal.new() :: Signal.Signal<Player>
@@ -122,7 +121,11 @@ function UpgradeService.BuyUpgrade(player: Player, statCategory: string): (boole
 	end
 
 	data.Upgrades[statKey] = nextLvl
-	BankServer.UpdateLeaderstats(player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local coinsVal = leaderstats and leaderstats:FindFirstChild("Coins") :: IntValue
+	if coinsVal then
+		coinsVal.Value = data.Coins or 0
+	end
 
 	-- Apply stats to live character
 	UpgradeService.ApplyStats(player)

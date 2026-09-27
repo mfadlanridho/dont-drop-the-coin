@@ -32,6 +32,7 @@ local SERVICE_ORDER = {
 	"CombatServer",
 	"SettingsService",
 	"GuardAIService",
+	"AbilityService",
 	"PistonCrusherService",
 	"HazardService",
 	"DevTeleportService",

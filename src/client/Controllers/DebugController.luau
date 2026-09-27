@@ -281,12 +281,128 @@ function DebugController.Init()
 		requestTeleport("Spawn")
 	end, 99)
 
+	-- 6. Register "Abilities" Debug Panel Tab (Order 6)
+	local abilityPanel = DebugGuiModule.registerPanel("Abilities", "Player Abilities", 6)
+	local useAbilityRemote = Remotes.Get("UseAbility")
+	local updateAbilityRemote = Remotes.Get("UpdateAbilityState")
+
+	local cooldownTimestamps = {
+		speed_surge = 0,
+		super_spring = 0,
+	}
+	local cooldownDurations = {
+		speed_surge = 15,
+		super_spring = 12,
+	}
+	local activeTimestamps = {
+		speed_surge = 0,
+		super_spring = 0,
+	}
+	local activeDurations = {
+		speed_surge = 5,
+		super_spring = 4,
+	}
+
+	local function updateAbilityEntries()
+		local char = LocalPlayer.Character
+		local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+		local currentSpeed = humanoid and humanoid.WalkSpeed or 16
+		local currentJump = humanoid and (humanoid.JumpHeight > 0 and humanoid.JumpHeight or humanoid.JumpPower) or 7.2
+
+		local now = os.clock()
+		local speedCd = math.max(0, (cooldownDurations.speed_surge or 15) - (now - (cooldownTimestamps.speed_surge or 0)))
+		local jumpCd = math.max(0, (cooldownDurations.super_spring or 12) - (now - (cooldownTimestamps.super_spring or 0)))
+
+		local speedActiveRemaining = math.max(0, (activeDurations.speed_surge or 5) - (now - (activeTimestamps.speed_surge or 0)))
+		local jumpActiveRemaining = math.max(0, (activeDurations.super_spring or 4) - (now - (activeTimestamps.super_spring or 0)))
+
+		-- Compile Active Abilities List
+		local activeList = {}
+		if speedActiveRemaining > 0 then
+			table.insert(activeList, string.format("⚡ Speed Surge (%.1fs)", speedActiveRemaining))
+		end
+		if jumpActiveRemaining > 0 then
+			table.insert(activeList, string.format("🦘 Super Spring (%.1fs)", jumpActiveRemaining))
+		end
+
+		local activeText = #activeList > 0 and table.concat(activeList, " | ") or "None (Idle)"
+
+		local speedStatus = speedActiveRemaining > 0 and string.format("ACTIVE (%.1fs left)", speedActiveRemaining)
+			or (speedCd > 0 and string.format("COOLDOWN (%.1fs)", speedCd) or "READY")
+
+		local jumpStatus = jumpActiveRemaining > 0 and string.format("ACTIVE (%.1fs left)", jumpActiveRemaining)
+			or (jumpCd > 0 and string.format("COOLDOWN (%.1fs)", jumpCd) or "READY")
+
+		DebugGuiModule.setEntry("Abilities", "ActiveList", "Active Buffs:", activeText)
+		DebugGuiModule.setEntry("Abilities", "LiveSpeed", "Live WalkSpeed:", string.format("%.1f studs/s%s", currentSpeed, speedActiveRemaining > 0 and " (⚡ 1.6x)" or ""))
+		DebugGuiModule.setEntry("Abilities", "LiveJump", "Live JumpHeight:", string.format("%.1f%s", currentJump, jumpActiveRemaining > 0 and " (🦘 1.8x)" or ""))
+		DebugGuiModule.setEntry("Abilities", "SpeedStatus", "⚡ Speed Surge:", speedStatus)
+		DebugGuiModule.setEntry("Abilities", "JumpStatus", "🦘 Super Spring:", jumpStatus)
+	end
+
+	-- Connect Humanoid property listeners for instant, accurate live stat readouts
+	local function bindHumanoidListeners(char: Model)
+		local humanoid = char:WaitForChild("Humanoid", 5) :: Humanoid?
+		if humanoid then
+			humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(updateAbilityEntries)
+			humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(updateAbilityEntries)
+			humanoid:GetPropertyChangedSignal("JumpPower"):Connect(updateAbilityEntries)
+			updateAbilityEntries()
+		end
+	end
+
+	if LocalPlayer.Character then
+		bindHumanoidListeners(LocalPlayer.Character)
+	end
+	LocalPlayer.CharacterAdded:Connect(bindHumanoidListeners)
+
+	-- Action 1: Trigger Speed Surge
+	DebugGuiModule.setAction("Abilities", "CastSpeedSurge", "⚡ Cast Speed Surge", function()
+		if useAbilityRemote then
+			useAbilityRemote:FireServer("speed_surge")
+		end
+		cooldownTimestamps.speed_surge = os.clock()
+		activeTimestamps.speed_surge = os.clock()
+		updateAbilityEntries()
+	end, 1)
+
+	-- Action 2: Trigger Super Spring
+	DebugGuiModule.setAction("Abilities", "CastSuperSpring", "🦘 Cast Super Spring", function()
+		if useAbilityRemote then
+			useAbilityRemote:FireServer("super_spring")
+		end
+		cooldownTimestamps.super_spring = os.clock()
+		activeTimestamps.super_spring = os.clock()
+		updateAbilityEntries()
+	end, 2)
+
+	if updateAbilityRemote then
+		updateAbilityRemote.OnClientEvent:Connect(function(abilityId, cdDuration, duration)
+			if abilityId and cooldownTimestamps[abilityId] ~= nil then
+				cooldownTimestamps[abilityId] = os.clock()
+				cooldownDurations[abilityId] = cdDuration or 10
+				activeTimestamps[abilityId] = os.clock()
+				activeDurations[abilityId] = duration or 0
+			end
+			updateAbilityEntries()
+		end)
+	end
+
+	-- Run a 10Hz smooth countdown ticker for active buffs and cooldowns
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			updateAbilityEntries()
+		end
+	end)
+
 	-- 100% EVENT-DRIVEN: Listen to unified PlayerFSM state transition events
 	PlayerFSM.OnStateChanged(LocalPlayer, function(oldState, newState)
 		updateStateEntry()
+		updateAbilityEntries()
 	end)
 
-	print("[DebugController] Minimal 100% event-driven FSM, Coins, Hitbox & Teleport Debug Controller initialized successfully!")
+	print("[DebugController] Minimal 100% event-driven FSM, Coins, Hitbox, Teleport & Abilities Debug Controller initialized successfully!")
 end
 
 return DebugController
