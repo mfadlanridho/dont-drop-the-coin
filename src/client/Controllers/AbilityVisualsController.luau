@@ -17,6 +17,12 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
 
+type AbilityEffect = {
+	AbilityId: string,
+	onStart: (character: Model, duration: number) -> (),
+	onEnd: (character: Model) -> (),
+}
+
 type ActiveBuffState = {
 	AbilityId: string,
 	Duration: number,
@@ -27,68 +33,30 @@ type ActiveBuffState = {
 }
 
 local activeBuffs: { [string]: ActiveBuffState } = {}
+local registeredEffects: { [string]: AbilityEffect } = {}
 local currentOverheadGui: BillboardGui? = nil
-local speedTrail: Trail? = nil
-local originalFOV = 70
-local isFOVExpanded = false
 
 local AbilityVisualsController = {}
 
---- Tweens Camera FieldOfView
-local function setCameraFOV(targetFOV: number, duration: number?)
-	if not Camera then return end
-	local tweenInfo = TweenInfo.new(duration or 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(Camera, tweenInfo, {
-		FieldOfView = targetFOV,
-	})
-	tween:Play()
-end
-
---- Ensures speed trail attachments are present on character
-local function setupSpeedTrail(character: Model)
-	local hrp = character:WaitForChild("HumanoidRootPart", 5) :: BasePart?
-	if not hrp then return end
-
-	-- Clean up existing
-	local oldTrail = hrp:FindFirstChild("SpeedSurgeTrail")
-	if oldTrail then oldTrail:Destroy() end
-
-	local att0 = hrp:FindFirstChild("TrailAtt0") :: Attachment?
-	if not att0 then
-		att0 = Instance.new("Attachment")
-		att0.Name = "TrailAtt0"
-		att0.Position = Vector3.new(0, -1.2, 0)
-		att0.Parent = hrp
+--- Auto-loads all effect modules from Client.AbilityEffects
+local function loadAbilityEffects()
+	local clientFolder = script.Parent.Parent
+	local effectsFolder = clientFolder:WaitForChild("AbilityEffects", 5) :: Folder?
+	if not effectsFolder then
+		warn("[AbilityVisualsController] AbilityEffects folder not found!")
+		return
 	end
 
-	local att1 = hrp:FindFirstChild("TrailAtt1") :: Attachment?
-	if not att1 then
-		att1 = Instance.new("Attachment")
-		att1.Name = "TrailAtt1"
-		att1.Position = Vector3.new(0, 1.2, 0)
-		att1.Parent = hrp
+	for _, child in ipairs(effectsFolder:GetChildren()) do
+		if child:IsA("ModuleScript") then
+			local success, effectModule = pcall(require, child)
+			if success and typeof(effectModule) == "table" and effectModule.AbilityId then
+				registeredEffects[effectModule.AbilityId] = effectModule :: AbilityEffect
+			else
+				warn(string.format("[AbilityVisualsController] Failed to load effect module: %s", child.Name))
+			end
+		end
 	end
-
-	local trail = Instance.new("Trail")
-	trail.Name = "SpeedSurgeTrail"
-	trail.Attachment0 = att0
-	trail.Attachment1 = att1
-	trail.Lifetime = 0.3
-	trail.MinLength = 0.1
-	trail.FaceCamera = true
-	trail.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 240, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 100, 255)),
-	})
-	trail.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.2),
-		NumberSequenceKeypoint.new(0.7, 0.5),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	trail.Enabled = false
-	trail.Parent = hrp
-
-	speedTrail = trail
 end
 
 --- Applies icon (either Image asset or Text emoji) to a buff pill
@@ -161,36 +129,6 @@ local function setupOverheadBuffGui(character: Model): BillboardGui?
 	return bbg
 end
 
---- Emits an emerald upward jump ring shockwave at character feet
-local function emitJumpShockwave(character: Model)
-	local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not hrp then return end
-
-	local ring = Instance.new("Part")
-	ring.Name = "JumpShockwave"
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.2, 2, 2)
-	ring.CFrame = hrp.CFrame * CFrame.new(0, -2.5, 0) * CFrame.Angles(0, 0, math.rad(90))
-	ring.Material = Enum.Material.Neon
-	ring.Color = Color3.fromRGB(0, 255, 120)
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanTouch = false
-	ring.CanQuery = false
-	ring.Transparency = 0.2
-	ring.Parent = Workspace
-
-	local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(ring, tweenInfo, {
-		Size = Vector3.new(0.1, 14, 14),
-		Transparency = 1,
-	})
-	tween:Play()
-	task.delay(0.45, function()
-		ring:Destroy()
-	end)
-end
-
 --- Shows an overhead badge with bounce pop-in animation
 local function showBuffVisuals(buff: ActiveBuffState)
 	if buff.OverheadPill then
@@ -219,9 +157,11 @@ local function hideBuffVisuals(buff: ActiveBuffState)
 end
 
 function AbilityVisualsController.Init()
-	-- Setup trails & 3D overhead BillboardGui on character spawn
+	-- 1. Auto-load all Ability Effects
+	loadAbilityEffects()
+
+	-- 2. Setup 3D overhead BillboardGui on character spawn
 	local function onCharacter(char: Model)
-		task.spawn(setupSpeedTrail, char)
 		task.spawn(setupOverheadBuffGui, char)
 	end
 
@@ -230,7 +170,7 @@ function AbilityVisualsController.Init()
 	end
 	LocalPlayer.CharacterAdded:Connect(onCharacter)
 
-	-- Listen for Ability Activations
+	-- 3. Listen for Ability Activations
 	local updateAbilityRemote = Remotes.Get("UpdateAbilityState")
 	if updateAbilityRemote then
 		updateAbilityRemote.OnClientEvent:Connect(function(abilityId: string, cdDuration: number, duration: number, icon: string?)
@@ -269,27 +209,18 @@ function AbilityVisualsController.Init()
 				end
 			end
 
-			-- 1. Show Overhead 3D Badge
+			-- 3a. Show Overhead 3D Badge
 			showBuffVisuals(buff)
 
-			-- 2. Trigger Specific Visual Layers
-			if abilityId == "speed_surge" then
-				if not isFOVExpanded then
-					isFOVExpanded = true
-					setCameraFOV(82, 0.3)
-				end
-				if speedTrail then
-					speedTrail.Enabled = true
-				end
-			elseif abilityId == "super_spring" then
-				if LocalPlayer.Character then
-					emitJumpShockwave(LocalPlayer.Character)
-				end
+			-- 3b. Dispatch onStart to Registered Ability Effect Handler
+			local effect = registeredEffects[abilityId]
+			if effect and typeof(effect.onStart) == "function" and LocalPlayer.Character then
+				task.spawn(effect.onStart, LocalPlayer.Character, buffDuration)
 			end
 		end)
 	end
 
-	-- Run continuous smooth ticker for all active overhead badges, FOV reset, and trail shutoff
+	-- 4. Run continuous smooth ticker for all active overhead badges and duration expiration
 	task.spawn(function()
 		while true do
 			task.wait(0.05)
@@ -306,14 +237,10 @@ function AbilityVisualsController.Init()
 						buff.ExpiresAt = 0
 						hideBuffVisuals(buff)
 
-						if abilityId == "speed_surge" then
-							if isFOVExpanded then
-								isFOVExpanded = false
-								setCameraFOV(originalFOV, 0.4)
-							end
-							if speedTrail then
-								speedTrail.Enabled = false
-							end
+						-- Dispatch onEnd to Registered Ability Effect Handler
+						local effect = registeredEffects[abilityId]
+						if effect and typeof(effect.onEnd) == "function" and LocalPlayer.Character then
+							task.spawn(effect.onEnd, LocalPlayer.Character)
 						end
 					end
 				end
@@ -321,7 +248,7 @@ function AbilityVisualsController.Init()
 		end
 	end)
 
-	print("[AbilityVisualsController] Initialized Generic Modular 3D Overhead Buff System.")
+	print("[AbilityVisualsController] Initialized Modular Ability Effects & 3D Overhead Buff System.")
 end
 
 return AbilityVisualsController
