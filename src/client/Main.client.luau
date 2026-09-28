@@ -28,6 +28,7 @@ safeInit("DebugGuiModule", DebugGuiModule.Init)
 local CONTROLLER_ORDER = {
 	"AudioController",
 	"HUDController",
+	"AbilityHUDController",
 	"StackVisualizer",
 	"CoinVisualizer",
 	"InputController",

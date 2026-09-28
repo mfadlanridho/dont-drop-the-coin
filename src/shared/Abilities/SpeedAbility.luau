@@ -21,7 +21,7 @@ function SpeedAbility.new(): SpeedAbilityType
 		Name = "Speed Surge",
 		Description = "Boosts player WalkSpeed by +60% for 5 seconds.",
 		Cooldown = 15,
-		Duration = 5,
+		Duration = 15,
 		SpeedMultiplier = 1.6,
 		SoundId = "rbxassetid://9114223179",
 		Icon = "rbxassetid://10709789910",

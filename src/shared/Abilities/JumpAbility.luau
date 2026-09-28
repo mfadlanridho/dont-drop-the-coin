@@ -21,7 +21,7 @@ function JumpAbility.new(): JumpAbilityType
 		Name = "Super Spring",
 		Description = "Boosts player Jump Height by +80% for 4 seconds.",
 		Cooldown = 12,
-		Duration = 4,
+		Duration = 12,
 		JumpMultiplier = 1.8,
 		SoundId = "rbxassetid://9114223179",
 		Icon = "rbxassetid://10709789910",
