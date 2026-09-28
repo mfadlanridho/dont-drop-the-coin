@@ -24,9 +24,9 @@ local SpeedSurgeEffect = {
 	AbilityId = "speed_surge",
 
 	-- Optional Audio configuration
-	StartSound = "rbxassetid://9120729973" :: string?, -- Optional whoosh activation SFX
-	LoopSound = "rbxassetid://9114223179" :: string?,  -- Optional looping rush SFX
-	EndSound = nil :: string?,                         -- Optional expiration SFX
+	StartSound = "SpeedSurgeStart" :: string?, -- Optional whoosh activation SFX
+	LoopSound = "SpeedSurgeLoop" :: string?,   -- Optional looping rush SFX
+	EndSound = "SpeedSurgeEnd" :: string?,     -- Optional expiration SFX
 }
 
 --- Sets up trail attachments on HumanoidRootPart if not present

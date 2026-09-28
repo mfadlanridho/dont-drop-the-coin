@@ -19,9 +19,9 @@ local SuperSpringEffect = {
 	AbilityId = "super_spring",
 
 	-- Optional Audio configuration
-	StartSound = "rbxassetid://9114223179" :: string?, -- Optional activation jump SFX
-	LoopSound = "rbxassetid://9114223179" :: string?,  -- Optional looping spring hum SFX
-	EndSound = nil :: string?,                         -- Optional expiration SFX
+	StartSound = "SuperSpringStart" :: string?, -- Optional activation jump SFX
+	LoopSound = "SuperSpringLoop" :: string?,   -- Optional looping spring hum SFX
+	EndSound = "SuperSpringEnd" :: string?,     -- Optional expiration SFX
 }
 
 --- Emits an emerald upward jump ring shockwave at character feet
