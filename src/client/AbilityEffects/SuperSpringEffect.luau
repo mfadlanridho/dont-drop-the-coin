@@ -13,7 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local AudioModule = require(Packages:WaitForChild("AudioModule") :: ModuleScript)
 
-local activeEmitter: ParticleEmitter? = nil
+local activeVfxAttachment: Attachment? = nil
 
 local SuperSpringEffect = {
 	AbilityId = "super_spring",
@@ -51,44 +51,35 @@ local function emitJumpShockwave(hrp: BasePart)
 	end)
 end
 
---- Sets up emerald sparkles emitter on character feet
-local function setupFeetEmitter(hrp: BasePart): ParticleEmitter
-	local old = hrp:FindFirstChild("SuperSpringSparkles") :: ParticleEmitter?
-	if old then return old end
+--- Clones and attaches SuperSpringVFX template from ReplicatedStorage.Templates.VFX
+local function attachVfx(hrp: BasePart): Attachment?
+	local templates = ReplicatedStorage:FindFirstChild("Templates")
+	local vfxFolder = templates and templates:FindFirstChild("VFX")
+	local template = vfxFolder and vfxFolder:FindFirstChild("SuperSpringVFX") :: Attachment?
 
-	local att = hrp:FindFirstChild("SpringFeetAtt") :: Attachment?
-	if not att then
-		att = Instance.new("Attachment")
-		att.Name = "SpringFeetAtt"
-		att.Position = Vector3.new(0, -2, 0)
-		att.Parent = hrp
+	if not template then
+		return nil
 	end
 
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "SuperSpringSparkles"
-	emitter.Rate = 22
-	emitter.Lifetime = NumberRange.new(0.3, 0.6)
-	emitter.Speed = NumberRange.new(2, 6)
-	emitter.SpreadAngle = Vector2.new(45, 45)
-	emitter.EmissionDirection = Enum.NormalId.Top
-	emitter.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 140)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 255, 200)),
-	})
-	emitter.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.4),
-		NumberSequenceKeypoint.new(1, 0.05),
-	})
-	emitter.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	emitter.LightEmission = 0.9
-	emitter.LightInfluence = 0
-	emitter.Enabled = false
-	emitter.Parent = att
+	-- Remove any existing duplicate
+	local existing = hrp:FindFirstChild("SuperSpringVFX")
+	if existing then
+		existing:Destroy()
+	end
 
-	return emitter
+	local cloned = template:Clone()
+	cloned.Parent = hrp
+
+	-- Enable all emitters and lights inside
+	for _, child in ipairs(cloned:GetChildren()) do
+		if child:IsA("ParticleEmitter") then
+			child.Enabled = true
+		elseif child:IsA("Light") then
+			child.Enabled = true
+		end
+	end
+
+	return cloned
 end
 
 --- Called when Super Spring starts
@@ -99,11 +90,8 @@ function SuperSpringEffect.onStart(character: Model, duration: number)
 	-- 1. Trigger Ground Shockwave Ring
 	emitJumpShockwave(hrp)
 
-	-- 2. Enable Feet Sparkle Particle Aura
-	activeEmitter = setupFeetEmitter(hrp)
-	if activeEmitter then
-		activeEmitter.Enabled = true
-	end
+	-- 2. Enable Prefabricated Feet Sparkle Particle Aura from Template
+	activeVfxAttachment = attachVfx(hrp)
 
 	-- 3. Play Start Sound (Optional) via AudioModule
 	if SuperSpringEffect.StartSound then
@@ -130,10 +118,25 @@ end
 function SuperSpringEffect.onEnd(character: Model)
 	local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart?
 
-	-- 1. Disable Feet Sparkle Particle Aura
-	if activeEmitter then
-		activeEmitter.Enabled = false
-		activeEmitter = nil
+	-- 1. Cleanly Dissipate VFX Emitters
+	if activeVfxAttachment then
+		local targetVfx = activeVfxAttachment
+		activeVfxAttachment = nil
+
+		for _, child in ipairs(targetVfx:GetChildren()) do
+			if child:IsA("ParticleEmitter") then
+				child.Enabled = false
+			elseif child:IsA("Light") then
+				child.Enabled = false
+			end
+		end
+
+		-- Allow in-flight particles to fade out naturally before destroying
+		task.delay(1, function()
+			if targetVfx and targetVfx.Parent then
+				targetVfx:Destroy()
+			end
+		end)
 	end
 
 	-- 2. Stop Looping Audio with Smooth Fade-out via AudioModule

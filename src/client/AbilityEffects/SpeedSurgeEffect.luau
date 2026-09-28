@@ -18,7 +18,7 @@ local originalFOV = 70
 local targetFOV = 82
 
 local activeTrail: Trail? = nil
-local activeEmitter: ParticleEmitter? = nil
+local activeVfxAttachment: Attachment? = nil
 
 local SpeedSurgeEffect = {
 	AbilityId = "speed_surge",
@@ -72,35 +72,35 @@ local function setupTrail(hrp: BasePart): Trail
 	return trail
 end
 
---- Sets up electric sparks particle emitter on HumanoidRootPart
-local function setupEmitter(hrp: BasePart): ParticleEmitter
-	local old = hrp:FindFirstChild("SpeedSurgeSparks") :: ParticleEmitter?
-	if old then return old end
+--- Clones and attaches SpeedSurgeVFX template from ReplicatedStorage.Templates.VFX
+local function attachVfx(hrp: BasePart): Attachment?
+	local templates = ReplicatedStorage:FindFirstChild("Templates")
+	local vfxFolder = templates and templates:FindFirstChild("VFX")
+	local template = vfxFolder and vfxFolder:FindFirstChild("SpeedSurgeVFX") :: Attachment?
 
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "SpeedSurgeSparks"
-	emitter.Rate = 25
-	emitter.Lifetime = NumberRange.new(0.2, 0.45)
-	emitter.Speed = NumberRange.new(3, 7)
-	emitter.SpreadAngle = Vector2.new(60, 60)
-	emitter.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 140, 255)),
-	})
-	emitter.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.45),
-		NumberSequenceKeypoint.new(1, 0.05),
-	})
-	emitter.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	emitter.LightEmission = 1
-	emitter.LightInfluence = 0
-	emitter.Enabled = false
-	emitter.Parent = hrp
+	if not template then
+		return nil
+	end
 
-	return emitter
+	-- Remove any existing duplicate
+	local existing = hrp:FindFirstChild("SpeedSurgeVFX")
+	if existing then
+		existing:Destroy()
+	end
+
+	local cloned = template:Clone()
+	cloned.Parent = hrp
+
+	-- Enable all emitters and lights inside
+	for _, child in ipairs(cloned:GetChildren()) do
+		if child:IsA("ParticleEmitter") then
+			child.Enabled = true
+		elseif child:IsA("Light") then
+			child.Enabled = true
+		end
+	end
+
+	return cloned
 end
 
 --- Called when Speed Surge starts
@@ -122,11 +122,8 @@ function SpeedSurgeEffect.onStart(character: Model, duration: number)
 		activeTrail.Enabled = true
 	end
 
-	-- 3. Enable Electric Sparks Particle Aura
-	activeEmitter = setupEmitter(hrp)
-	if activeEmitter then
-		activeEmitter.Enabled = true
-	end
+	-- 3. Enable Prefabricated Electric Sparks & Aura from Template
+	activeVfxAttachment = attachVfx(hrp)
 
 	-- 4. Play Start Sound (Optional) via AudioModule
 	if SpeedSurgeEffect.StartSound then
@@ -165,10 +162,25 @@ function SpeedSurgeEffect.onEnd(character: Model)
 		activeTrail = nil
 	end
 
-	-- 3. Disable Particle Aura
-	if activeEmitter then
-		activeEmitter.Enabled = false
-		activeEmitter = nil
+	-- 3. Cleanly Dissipate VFX Emitters
+	if activeVfxAttachment then
+		local targetVfx = activeVfxAttachment
+		activeVfxAttachment = nil
+
+		for _, child in ipairs(targetVfx:GetChildren()) do
+			if child:IsA("ParticleEmitter") then
+				child.Enabled = false
+			elseif child:IsA("Light") then
+				child.Enabled = false
+			end
+		end
+
+		-- Allow in-flight particles to fade out naturally before destroying
+		task.delay(1, function()
+			if targetVfx and targetVfx.Parent then
+				targetVfx:Destroy()
+			end
+		end)
 	end
 
 	-- 4. Stop Looping Audio with Smooth Fade-out via AudioModule
