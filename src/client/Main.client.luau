@@ -29,6 +29,7 @@ local CONTROLLER_ORDER = {
 	"AudioController",
 	"HUDController",
 	"AbilityHUDController",
+	"AbilityVisualsController",
 	"StackVisualizer",
 	"CoinVisualizer",
 	"InputController",

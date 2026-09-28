@@ -20,11 +20,11 @@ function SpeedAbility.new(): SpeedAbilityType
 		Id = "speed_surge",
 		Name = "Speed Surge",
 		Description = "Boosts player WalkSpeed by +60% for 5 seconds.",
-		Cooldown = 15,
-		Duration = 15,
+		Cooldown = 5,
+		Duration = 5,
 		SpeedMultiplier = 1.6,
 		SoundId = "rbxassetid://9114223179",
-		Icon = "rbxassetid://10709789910",
+		Icon = "⚡",
 	})
 
 	return (setmetatable(self, SpeedAbility) :: any) :: SpeedAbilityType

@@ -57,7 +57,7 @@ function BaseAbility.new(props: AbilityProperties): BaseAbilityType
 		Description = props.Description or "",
 		Cooldown = props.Cooldown or 10,
 		Duration = props.Duration or 0,
-		Icon = props.Icon,
+		Icon = props.Icon or "⚡",
 		SoundId = props.SoundId,
 		SpeedMultiplier = props.SpeedMultiplier,
 		JumpMultiplier = props.JumpMultiplier,
@@ -130,7 +130,7 @@ function BaseAbility:Activate(player: Player): boolean
 	-- 5. Replicate UI Cooldown & Audio feedback
 	local updateRemote = Remotes.Get("UpdateAbilityState")
 	if updateRemote then
-		updateRemote:FireClient(player, self.Id, self.Cooldown, self.Duration)
+		updateRemote:FireClient(player, self.Id, self.Cooldown, self.Duration, self.Icon or "⚡")
 	end
 
 	if self.SoundId then

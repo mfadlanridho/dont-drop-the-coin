@@ -20,11 +20,11 @@ function JumpAbility.new(): JumpAbilityType
 		Id = "super_spring",
 		Name = "Super Spring",
 		Description = "Boosts player Jump Height by +80% for 4 seconds.",
-		Cooldown = 12,
-		Duration = 12,
+		Cooldown = 4,
+		Duration = 4,
 		JumpMultiplier = 1.8,
 		SoundId = "rbxassetid://9114223179",
-		Icon = "rbxassetid://10709789910",
+		Icon = "🦘",
 	})
 
 	return (setmetatable(self, JumpAbility) :: any) :: JumpAbilityType
