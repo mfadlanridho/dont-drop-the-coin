@@ -218,6 +218,19 @@ function UpgradeService.Init()
 		onPlayerJoined(p)
 	end
 
+	-- Connect to RebirthService to refresh stats and notify client upon Rebirth
+	local RebirthService = require(Services:WaitForChild("RebirthService"))
+	RebirthService.OnRebirth:Connect(function(player: Player)
+		local data = DataStoreManager.GetData(player)
+		if data and data.Upgrades then
+			local updateRemote = Remotes.Get("UpdateUpgrades")
+			if updateRemote then
+				updateRemote:FireClient(player, data.Upgrades)
+			end
+		end
+		UpgradeService.ApplyStats(player)
+	end)
+
 	print("[UpgradeService] Permanent Stat Upgrades Service initialized successfully.")
 end
 

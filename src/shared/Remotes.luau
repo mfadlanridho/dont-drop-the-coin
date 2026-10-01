@@ -41,6 +41,9 @@ local REMOTE_NAMES = {
 	"UseAbility",
 	"ApplyEffect",
 	"UpdateAbilityState",
+	"RequestRebirth",
+	"RebirthSuccess",
+	"RebirthDataUpdated",
 }
 
 -- Initialize Remote Events

@@ -67,12 +67,23 @@ local function setupLeaderstats(player: Player)
 		stackVal.Parent = leaderstats
 	end
 
+	local rebirthsVal = leaderstats:FindFirstChild("Rebirths") :: IntValue
+	if not rebirthsVal then
+		rebirthsVal = Instance.new("IntValue")
+		rebirthsVal.Name = "Rebirths"
+		rebirthsVal.Value = 0
+		rebirthsVal.Parent = leaderstats
+	end
+
 	-- Sync starting data from DataStore via PlayerLoaded signal
 	DataStoreManager.OnPlayerLoaded(player, function(data)
 		if player.Parent and coinsVal then
 			coinsVal.Value = (data and data.Coins) or 0
+			if rebirthsVal then
+				rebirthsVal.Value = (data and data.Rebirths) or 0
+			end
 			player:SetAttribute("DataReady", true)
-			log(string.format("Leaderstats synced from DataStore for %s (Coins: %d, Stack: %d)", player.Name, coinsVal.Value, stackVal.Value))
+			log(string.format("Leaderstats synced from DataStore for %s (Coins: %d, Stack: %d, Rebirths: %d)", player.Name, coinsVal.Value, stackVal.Value, rebirthsVal.Value))
 		end
 	end)
 end
@@ -81,12 +92,16 @@ end
 function BankServer.UpdateLeaderstats(player: Player)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	if leaderstats then
-		local coinsVal = leaderstats:FindFirstChild("Coins") :: IntValue
-		local stackVal = leaderstats:FindFirstChild("Stack") :: IntValue
+		local coinsVal = leaderstats:FindFirstChild("Coins") :: IntValue?
+		local stackVal = leaderstats:FindFirstChild("Stack") :: IntValue?
+		local rebirthsVal = leaderstats:FindFirstChild("Rebirths") :: IntValue?
 
 		local data = DataStoreManager.GetData(player)
 		if data and coinsVal then
 			coinsVal.Value = data.Coins or 0
+		end
+		if data and rebirthsVal then
+			rebirthsVal.Value = data.Rebirths or 0
 		end
 		if stackVal then
 			stackVal.Value = StackServer.GetStackCount(player)
@@ -142,7 +157,11 @@ function BankServer.BankStackAtVault(player: Player, vaultPad: BasePart?): boole
 		baseCash = stackCount -- Fallback if stack had no tier entries
 	end
 
-	local totalMultiplier = vaultMultiplier * groupBonus
+	local playerData = DataStoreManager.GetData(player)
+	local rebirthCount = (playerData and playerData.Rebirths) or 0
+	local rebirthBonus = 1.0 + (math.max(0, rebirthCount) * 0.25)
+
+	local totalMultiplier = vaultMultiplier * groupBonus * rebirthBonus
 	local earnedCash = math.max(1, math.floor(baseCash * totalMultiplier))
 	DataStoreManager.AddBankedCash(player, earnedCash)
 

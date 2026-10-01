@@ -16,6 +16,7 @@ Config.DEFAULT_DATA = {
 	DataVersion = 3,
 	Coins = 0,
 	TotalBanked = 0,
+	Rebirths = 0,
 	EquippedSkin = "Default",
 	OwnedPasses = {},
 	Upgrades = {

@@ -110,6 +110,11 @@ function DebugController.Init()
 		if devStackActionRemote then devStackActionRemote:FireServer("ClearStack") end
 	end, 7)
 
+	local requestRebirthRemote = Remotes.Get("RequestRebirth")
+	DebugGuiModule.setAction("Coins", "RequestRebirth", "⭐ Rebirth (Prestige)", function()
+		if requestRebirthRemote then requestRebirthRemote:FireServer() end
+	end, 8)
+
 	-- Event listeners for dynamic coin status updates
 	if updateStackRemote then
 		updateStackRemote.OnClientEvent:Connect(function(targetPlayer, newCount, totalWeight, coinsList)

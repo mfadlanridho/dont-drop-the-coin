@@ -20,6 +20,7 @@ end
 -- Explicit order of core server services initialization with safeInit protection
 local SERVICE_ORDER = {
 	"DataStoreManager",
+	"RebirthService",
 	"UpgradeService",
 	"StackServer",
 	"CoinService",
